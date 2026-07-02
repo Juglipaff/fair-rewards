@@ -7,6 +7,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 //TODO; vault wrapper?
 //TODO: upgradeable?
 
+//TODO: comms
 abstract contract FairRewardDistributor {
     using SafeCast for uint256;
 
@@ -46,6 +47,8 @@ abstract contract FairRewardDistributor {
 
     error DistributionNotAvailable();
 
+    error TotalStakeOverflow();
+
     // ============ Constructor ============
 
     constructor() {
@@ -55,8 +58,8 @@ abstract contract FairRewardDistributor {
             rewardPerStakeAge: 0,
             cumRewardAgePerStakeAge: 0
         });
-        _distributionId = 1;
         _lastUpdateBlock = block64;
+        _distributionId = 1;
     }
 
     // ============ Internal Write Functions ============
@@ -66,9 +69,14 @@ abstract contract FairRewardDistributor {
         if(stake == 0) revert InsufficientStake(stake);
 
         _updateStake(recipient);
-        __totalStake += stake;
-        // prettier-ignore 
-        unchecked { _userInfo[recipient].stake += stake; }
+
+        unchecked { 
+            uint192 totalStake = __totalStake;
+            if(totalStake + stake < __totalStake) revert TotalStakeOverflow();
+
+            __totalStake = totalStake + stake;
+            _userInfo[recipient].stake += stake; 
+        }
 
         _postStake(stake, recipient);
         return stake;
@@ -78,49 +86,50 @@ abstract contract FairRewardDistributor {
 
     function _postStake(uint192 depositStake, address recipient) internal virtual;
 
-    function _withdraw(uint256 liquidity, address from, address recipient) internal returns(uint256) {
+    function _withdraw(uint256 liquidity, address user, address recipient) internal returns(uint256) {
         uint192 stake = _preWithdraw(liquidity, recipient);
         if(stake == 0) revert InsufficientStake(stake);
 
-        _updateStake(from);
+        _updateStake(user);
 
-		UserInfo storage user = _userInfo[from];
-		uint192 reward = user.reward;
+		UserInfo storage userInfo = _userInfo[user];
+		uint192 reward = userInfo.reward;
 		if (stake > reward) {
-			uint192 balance = user.stake + reward;
+			uint192 balance = userInfo.stake + reward; //TODO; this can get stake stuck
             if(stake > balance) revert InsufficientBalance(stake, balance);
 
             unchecked {
-			    user.stake = balance - stake;
-			    __totalStake = __totalStake + reward - stake;
+			    userInfo.stake = balance - stake;
+			    __totalStake = uint192(uint256(__totalStake) + reward) - stake;  //TODO; this can get stake stuck
             }
-			user.reward = 0;
+			userInfo.reward = 0;
 		} else {
             // prettier-ignore
-			unchecked { user.reward = reward - stake; }
+			unchecked { userInfo.reward = reward - stake; }
 		}
 
-        _postWithdraw(stake, from, recipient);
+        _postWithdraw(stake, user, recipient);
         return stake;
     }
 
     function _preWithdraw(uint256 liquidity, address recipient) internal virtual returns(uint192);
     
-    function _postWithdraw(uint192 stake, address from, address recipient) internal virtual;
+    function _postWithdraw(uint192 stake, address user, address recipient) internal virtual;
 
     function _distribute(uint256 reward) internal returns(uint256) {
         uint192 rewardStake = _preDistribute(reward);
         if(rewardStake == 0) revert InsufficientStake(rewardStake);
 
-        uint256 totalStakeAge = _totalStakeAge + __totalStake * (block.number - _lastUpdateBlock);
+        uint64 block64 = block.number.toUint64();
+
+        uint256 totalStakeAge = _totalStakeAge + __totalStake * (block64 - _lastUpdateBlock); //TODO; this can get stake stuck
         if(totalStakeAge == 0) revert DistributionNotAvailable();
         uint256 rewardPerStakeAge = rewardStake * DENOMINATOR / totalStakeAge;
 
         uint64 distributionId = _distributionId;
         DistributionInfo storage prevDistributionInfo = _distributionInfo[distributionId - 1];
-        uint256 cumRewardAgePerStakeAge = prevDistributionInfo.cumRewardAgePerStakeAge + rewardPerStakeAge * (block.number - prevDistributionInfo.block);
+        uint256 cumRewardAgePerStakeAge = prevDistributionInfo.cumRewardAgePerStakeAge + rewardPerStakeAge * (block64 - prevDistributionInfo.block); //TODO; this can get stake stuck
         
-        uint64 block64 = block.number.toUint64();
         _distributionInfo[distributionId] = DistributionInfo({
             block: block64,
             rewardPerStakeAge: rewardPerStakeAge,
@@ -167,11 +176,11 @@ abstract contract FairRewardDistributor {
         }
 
         uint256 userStake = userInfo.stake;
-        uint256 userStakeAge = userInfo.stakeAge + userStake * blockDelta;
+        uint256 userStakeAge = userInfo.stakeAge + userStake * blockDelta; //TODO; this can get stake stuck
 
         uint256 rewardBeforeDistibution = Math.mulDiv(userStakeAge, lastUserDistributionInfo.rewardPerStakeAge, DENOMINATOR);
         uint256 rewardAfterDistribution = Math.mulDiv(userStake, rangeRewardAgePerStakeAge, DENOMINATOR);
-        return userReward + rewardBeforeDistibution + rewardAfterDistribution;
+        return userReward + rewardBeforeDistibution + rewardAfterDistribution; //TODO; this can get stake stuck
     }
 
     // ============ Private Write Functions ============
@@ -190,12 +199,11 @@ abstract contract FairRewardDistributor {
         }
 
         uint64 block64 = block.number.toUint64();
-
-        userInfo.stakeAge = userInfo.stake * (block.number - fromBlock);
+        userInfo.stakeAge = userInfo.stake * (block64 - fromBlock);
         userInfo.lastDistributionId = distributionId;
         userInfo.lastUpdateBlock = block64;
 
-        _totalStakeAge += __totalStake * (block.number - _lastUpdateBlock);
+        _totalStakeAge += __totalStake * (block64 - _lastUpdateBlock);
         _lastUpdateBlock = block64;
     }
 }
