@@ -74,7 +74,7 @@ Every user-facing operation — `stake`, `withdraw`, `distribute`, reward query 
 
 ### Install
 
-**Foundry** (git submodule):
+#### **Foundry** (git submodule):
 
 ```bash
 forge install Juglipaff/fair-reward-distributor
@@ -86,13 +86,11 @@ Then add to `remappings.txt`:
 @juglipaff/fair-reward-distributor/=lib/fair-reward-distributor/
 ```
 
-**npm** (Hardhat, Truffle, or any Node-based toolchain):
+#### **npm** (Hardhat, Truffle, or any Node-based toolchain):
 
 ```bash
 npm install @juglipaff/fair-reward-distributor
 ```
-
-The package ships the Solidity sources under `src/` and a `remappings.txt` you can include from your own.
 
 ### Integration
 
