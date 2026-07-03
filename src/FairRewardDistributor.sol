@@ -7,22 +7,51 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 //TODO; vault wrapper?
 //TODO: upgradeable?
 
-//TODO: comms
-
-//assumptions:
-//no block numbers higher than 2**64 - 1 are possible. it stops rewards after that
-//stakes can be represented by 2**128 - 1 max
+/**
+ * @title FairRewardDistributor
+ * @dev Constant-gas, front-run-resistant on-chain reward distribution using deposit-age weighting.
+ *      A user's reward is proportional to (stake × time-in-pool). Every operation is O(1)
+ *      regardless of participant count or number of past distributions, achieved by storing a
+ *      running prefix-sum accumulator on every distribution and remembering the user's last
+ *      touched distribution index on every user action.
+ *
+ *      Assumptions:
+ *      - Block numbers don't exceed 2**64 - 1. Rewards stop accruing beyond that horizon.
+ *      - Individual and total stakes are bounded by 2**128 - 1.
+ *
+ *      Abstract: consumers implement the `_preStake` / `_preWithdraw` / `_preDistribute` hooks to
+ *      validate + convert user inputs into internal stake units, and the `_postStake` /
+ *      `_postWithdraw` / `_postDistribute` hooks to move the underlying assets.
+ */
 abstract contract FairRewardDistributor {
     using SafeCast for uint256;
 
     // ============ Types ============
 
+    /**
+     * @dev Snapshot recorded on every distribution.
+     * @param block Block number at which this distribution was performed.
+     * @param rewardPerStakeAge Reward tokens per unit of stake-age, scaled by DENOMINATOR.
+     * @param cumRewardAgePerStakeAge Running prefix sum of (rewardPerStakeAge × interval length)
+     *        across all distributions up to and including this one. Used to compute a user's
+     *        reward for the range (userLastDistribution, currentDistribution] via subtraction.
+     */
     struct DistributionInfo {
         uint64 block;
         uint192 rewardPerStakeAge;
         uint256 cumRewardAgePerStakeAge;
     }
 
+    /**
+     * @dev Per-user accounting state. Rewritten on every user action (stake / withdraw / collect).
+     * @param stake Current staked amount.
+     * @param lastDistributionId Distribution index at which this user last acted; anchors the
+     *        prefix-sum range for O(1) reward computation.
+     * @param lastUpdateBlock Block number at which the user last acted.
+     * @param stakeAge Accumulated (stake × block-delta) since lastUpdateBlock, up to the
+     *        distribution after which the user has not yet been settled.
+     * @param reward Already-realized reward owed to the user, not yet withdrawn.
+     */
     struct UserInfo {
         uint128 stake;
         uint64 lastDistributionId;
@@ -33,30 +62,63 @@ abstract contract FairRewardDistributor {
 
     // ============ Storage ============
 
+    ///@dev Sum of all users' current stakes.
     uint128 private __totalStake;
+    ///@dev Block number at which pool-level state (__totalStake, _totalStakeAge) was last updated.
     uint128 private _lastUpdateBlock;
+    ///@dev Accumulated (__totalStake × block-delta) since the previous distribution. Consumed and reset to zero on each distribution.
     uint192 private _totalStakeAge;
+    ///@dev Next distribution index. Distributions are numbered 0..N; 0 is the bootstrap sentinel installed in the constructor.
     uint64 private _distributionId;
 
+    ///@dev Per-user accounting state keyed by user address.
     mapping(address user => UserInfo) private _userInfo;
+    ///@dev Per-distribution snapshot keyed by distribution id.
     mapping(uint64 distributionId => DistributionInfo) private _distributionInfo;
 
+    ///@dev Fixed-point scale factor for rewardPerStakeAge to preserve precision under integer math.
     uint256 private constant DENOMINATOR = type(uint64).max;
 
     // ============ Errors ============
 
+    /**
+     * @dev Thrown when a stake / withdraw / distribute call produces zero (or otherwise invalid)
+     *      internal stake units after `_preStake` / `_preWithdraw` / `_preDistribute` validation.
+     * @param stake The rejected stake value.
+     */
     error InsufficientStake(uint128 stake);
 
+    /**
+     * @dev Thrown when a withdrawal exceeds the user's stake + realized reward balance.
+     * @param needed Amount requested.
+     * @param actual Amount available.
+     */
     error InsufficientBalance(uint256 needed, uint256 actual);
 
+    /**
+     * @dev Thrown when distribution is called before any positive total stake-age has accrued,
+     *      meaning no participants are eligible to receive a share of the reward.
+     */
     error DistributionNotAvailable();
 
+    /**
+     * @dev Thrown when adding a new stake would overflow the uint128 __totalStake accumulator.
+     */
     error TotalStakeOverflow();
 
+    /**
+     * @dev Thrown when the uint64 distribution counter would wrap around, which would brick
+     *      further distributions.
+     */
     error DistributionIdOverflow();
 
     // ============ Constructor ============
 
+    /**
+     * @dev Installs a bootstrap distribution at index 0 anchored to the deployment block. This
+     *      guarantees `_distributionInfo[distributionId - 1]` is always addressable inside
+     *      `_distribute` without a special case for the first real distribution.
+     */
     constructor() {
         uint64 block64 = block.number.toUint64();
         _distributionInfo[0] = DistributionInfo({ block: block64, rewardPerStakeAge: 0, cumRewardAgePerStakeAge: 0 });
@@ -66,6 +128,14 @@ abstract contract FairRewardDistributor {
 
     // ============ Internal Write Functions ============
 
+    /**
+     * @dev Adds a user's stake to the pool. Settles their prior stake-age first so the new stake
+     *      begins accruing cleanly from this block.
+     * @param liquidity Raw amount as understood by the consuming contract; converted to internal
+     *        stake units by `_preStake`.
+     * @param recipient User to credit with the stake.
+     * @return Internal stake units actually credited.
+     */
     function _stake(uint256 liquidity, address recipient) internal returns (uint256) {
         uint128 stake = _preStake(liquidity);
         if (stake == 0) revert InsufficientStake(stake);
@@ -84,6 +154,14 @@ abstract contract FairRewardDistributor {
         return stake;
     }
 
+    /**
+     * @dev Withdraws liquidity for a user, drawing first from their realized reward balance and
+     *      then from their principal stake.
+     * @param liquidity Raw amount requested by the caller.
+     * @param user Account whose position is being reduced.
+     * @param recipient Address that receives the underlying via `_postWithdraw`.
+     * @return Internal stake units actually withdrawn.
+     */
     function _withdraw(uint256 liquidity, address user, address recipient) internal returns (uint256) {
         uint128 stake = _preWithdraw(liquidity);
         if (stake == 0) revert InsufficientStake(stake);
@@ -110,6 +188,13 @@ abstract contract FairRewardDistributor {
         return stake;
     }
 
+    /**
+     * @dev Records a new distribution: consumes the accumulated `_totalStakeAge` from the previous
+     *      distribution and stores the prefix-sum needed for O(1) per-user reward lookup.
+     * @param reward Raw reward amount as understood by the consuming contract; converted to
+     *        internal reward-stake units by `_preDistribute`.
+     * @return Internal stake units actually rewarded.
+     */
     function _distribute(uint256 reward) internal returns (uint256) {
         uint128 rewardStake = _preDistribute(reward);
         if (rewardStake == 0) revert InsufficientStake(rewardStake);
@@ -142,31 +227,84 @@ abstract contract FairRewardDistributor {
         _totalStakeAge = 0;
 
         _postDistribute(rewardStake);
-        return reward;
+        return rewardStake;
     }
 
-    function _postStake(uint128 depositStake, address recipient) internal virtual;
+    /**
+     * @dev Hook invoked after a successful `_stake`. Implementers move the underlying deposit into
+     *      the contract or otherwise finalize the stake side-effects.
+     * @param stake Internal stake units credited.
+     * @param recipient User credited with the stake.
+     */
+    function _postStake(uint128 stake, address recipient) internal virtual;
 
+    /**
+     * @dev Hook invoked after a successful `_withdraw`. Implementers transfer the underlying to
+     *      `recipient` or otherwise finalize the withdrawal side-effects.
+     * @param stake Internal stake units withdrawn.
+     * @param user Account whose position was reduced.
+     * @param recipient Address receiving the underlying.
+     */
     function _postWithdraw(uint128 stake, address user, address recipient) internal virtual;
 
-    function _postDistribute(uint128 rewardStake) internal virtual;
+    /**
+     * @dev Hook invoked after a successful `_distribute`. Implementers move the reward tokens into
+     *      the contract or otherwise finalize distribution side-effects.
+     * @param stake Internal reward-stake units allocated.
+     */
+    function _postDistribute(uint128 stake) internal virtual;
 
     // ============ Internal View Functions ============
 
+    /**
+     * @dev Hook invoked before `_stake` to validate and convert the raw `liquidity` argument into
+     *      internal stake units.
+     * @param liquidity Raw amount from the caller.
+     * @return Internal stake units to credit.
+     */
     function _preStake(uint256 liquidity) internal view virtual returns (uint128);
 
+    /**
+     * @dev Hook invoked before `_withdraw` to validate and convert the raw `liquidity` argument
+     *      into internal stake units.
+     * @param liquidity Raw amount from the caller.
+     * @return Internal stake units to withdraw.
+     */
     function _preWithdraw(uint256 liquidity) internal view virtual returns (uint128);
 
-    function _preDistribute(uint256 reward) internal view virtual returns (uint128);
+    /**
+     * @dev Hook invoked before `_distribute` to validate and convert the raw `reward` argument
+     *      into internal reward-stake units.
+     * @param liquidity Raw amount from the caller.
+     * @return Internal reward-stake units to distribute.
+     */
+    function _preDistribute(uint256 liquidity) internal view virtual returns (uint128);
 
+    /**
+     * @dev Reads the current sum of all users' stakes.
+     * @return Current total staked amount.
+     */
     function _totalStake() internal view returns (uint256) {
         return __totalStake;
     }
 
+    /**
+     * @dev Reads a specific user's current stake.
+     * @param user Account to inspect.
+     * @return Current stake of `user`.
+     */
     function _userStake(address user) internal view returns (uint256) {
         return _userInfo[user].stake;
     }
 
+    /**
+     * @dev Computes a specific user's total unclaimed reward, including rewards accrued through
+     *      the most recent distribution. Combines the already-realized reward with the partial
+     *      first-distribution term (`rewardBeforeDistribution`) and the prefix-sum range term
+     *      (`rewardAfterDistribution`).
+     * @param user Account to inspect.
+     * @return Total reward owed to `user` but not yet withdrawn.
+     */
     function _userReward(address user) internal view returns (uint256) {
         UserInfo storage userInfo = _userInfo[user];
 
@@ -199,6 +337,13 @@ abstract contract FairRewardDistributor {
 
     // ============ Private Write Functions ============
 
+    /**
+     * @dev Settles a user's accumulated stake-age up to the current block. If a new distribution
+     *      has occurred since the user's last action, first realizes their reward through that
+     *      distribution and resets their stake-age accumulator to start counting from the last
+     *      distribution's block.
+     * @param user Account whose state is being brought current.
+     */
     function _updateStake(address user) private {
         UserInfo storage userInfo = _userInfo[user];
 
