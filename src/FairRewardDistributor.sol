@@ -10,7 +10,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 //TODO: comms
 
 //assumptions: 
-//no block numbers higher than 2**64 - 1 are possible
+//no block numbers higher than 2**64 - 1 are possible. it stops rewards after that
 //stakes can be represented by 2**128 - 1 max
 abstract contract FairRewardDistributor {
     using SafeCast for uint256;
@@ -205,7 +205,7 @@ abstract contract FairRewardDistributor {
             unchecked { fromBlock = _distributionInfo[distributionId - 1].block; }
         }
 
-        uint64 block64 = block.number.toUint64();//TODO: what if its more?
+        uint64 block64 = block.number > type(uint64).max ? type(uint64).max : uint64(block.number);
         unchecked {
             userInfo.stakeAge = uint192(userInfo.stake * (block64 - fromBlock));
             _totalStakeAge += uint192(__totalStake * (block64 - _lastUpdateBlock));
