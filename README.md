@@ -24,7 +24,7 @@ Three approaches have historically dominated on-chain reward distribution. Each 
 - Users must trust the operator's data pipeline, or the project must fund extra infrastructure (indexers, ZK proofs, redundant computation) to make the tree verifiable.
 - Distribution is discrete, gated by the operator publishing a new root.
 
-**2. Fixed-emission-rate pools** (MasterChef, Synthetix `StakingRewards`, etc.). A constant `rewardPerBlock` or `rewardPerSecond` is set up front and streamed to whoever is staked at each block. Fully on-chain and trustless, but rigid:
+**2. Fixed-emission-rate pools** (SushiSwap's `MasterChef`, Synthetix's `StakingRewards`, etc.). A constant `rewardPerBlock` or `rewardPerSecond` is set up front and streamed to whoever is staked at each block. Fully on-chain and trustless, but rigid:
 
 - The reward budget must be committed ahead of time as an *emission schedule*, not a discrete amount. Adjusting mid-stream requires a governance / owner action.
 - The rate is a policy parameter, not a market outcome — hard to align with irregular revenue sources (e.g. protocol fees that arrive lumpy).
