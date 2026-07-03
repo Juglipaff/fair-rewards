@@ -4,10 +4,10 @@
 [![coverage](https://coveralls.io/repos/github/Juglipaff/fair-reward-distributor/badge.svg?branch=main)](https://coveralls.io/github/Juglipaff/fair-reward-distributor?branch=main)
 [![license](https://img.shields.io/npm/l/@juglipaff/fair-reward-distributor.svg)](./LICENSE)
 
-Constant-gas, deposit-age-weighted, front-run-resistant on-chain reward distribution.
-
 > [!CAUTION]
 > This code has **not** been audited. Use at your own risk. No warranty is provided, express or implied. Do not deploy to production without an independent security review.
+
+Constant-gas, deposit-age-weighted, front-run-resistant on-chain reward distribution.
 
 ## Algorithm
 
