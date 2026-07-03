@@ -6,9 +6,8 @@
 
 Constant-gas, deposit-age-weighted, front-run-resistant on-chain reward distribution.
 
-## ⚠️ No Audit
-
-This code has **not** been audited. Use at your own risk. No warranty is provided, express or implied. Do not deploy to production without an independent security review.
+> [!CAUTION]
+> **No Audit.** This code has **not** been audited. Use at your own risk. No warranty is provided, express or implied. Do not deploy to production without an independent security review.
 
 ## Algorithm
 
