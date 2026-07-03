@@ -7,11 +7,12 @@
 Constant-gas, deposit-age-weighted, front-run-resistant on-chain reward distribution.
 
 > [!CAUTION]
-> **No Audit.** This code has **not** been audited. Use at your own risk. No warranty is provided, express or implied. Do not deploy to production without an independent security review.
+> This code has **not** been audited. Use at your own risk. No warranty is provided, express or implied. Do not deploy to production without an independent security review.
 
 ## Algorithm
 
-Algorithm by [Ivan Menshchikov](https://github.com/Juglipaff) and [Roman Vinogradov](https://github.com/sapph1re). Full derivation: https://juglipaff.github.io/Token-Distribution-Algorithm/
+Algorithm by [Ivan Menshchikov](https://github.com/Juglipaff) and [Roman Vinogradov](https://github.com/sapph1re). 
+Full derivation: https://juglipaff.github.io/Token-Distribution-Algorithm/
 
 ### The problem
 
