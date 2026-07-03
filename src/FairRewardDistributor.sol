@@ -15,24 +15,25 @@ abstract contract FairRewardDistributor {
 
     struct DistributionInfo {
         uint64 block;
-        uint256 rewardPerStakeAge;
+        uint192 rewardPerStakeAge;
         uint256 cumRewardAgePerStakeAge;
     }
 
+    //TODO: restructure for gas save
     struct UserInfo {
-        uint192 stake;
+        uint128 stake;
         uint64 lastDistributionId;
         uint192 reward;
         uint64 lastUpdateBlock;
-        uint256 stakeAge;
+        uint192 stakeAge;
     }
 
     // ============ Storage ============
 
-    uint192 private __totalStake;
-    uint192 private _lastUpdateBlock;
-    uint256 private _totalStakeAge;
-
+    uint128 private __totalStake;
+    uint128 private _lastUpdateBlock;
+    uint192 private _totalStakeAge;
+ 
     uint64 private _distributionId;
     mapping(address user => UserInfo) private _userInfo;
     mapping(uint64 distributionId => DistributionInfo) private _distributionInfo;
@@ -41,7 +42,7 @@ abstract contract FairRewardDistributor {
 
     // ============ Errors ============
 
-    error InsufficientStake(uint192 stake);
+    error InsufficientStake(uint128 stake);
 
     error InsufficientBalance(uint256 needed, uint256 actual);
 
@@ -65,15 +66,15 @@ abstract contract FairRewardDistributor {
     // ============ Internal Write Functions ============
 
     function _stake(uint256 liquidity, address recipient) internal returns(uint256) {
-        uint192 stake = _preStake(liquidity);
+        uint128 stake = _preStake(liquidity);
         if(stake == 0) revert InsufficientStake(stake);
 
         _updateStake(recipient);
 
         unchecked { 
-            uint192 totalStake = __totalStake;
+            uint128 totalStake = __totalStake;
             if(totalStake + stake < __totalStake) revert TotalStakeOverflow();
-
+            
             __totalStake = totalStake + stake;
             _userInfo[recipient].stake += stake; 
         }
@@ -82,53 +83,55 @@ abstract contract FairRewardDistributor {
         return stake;
     }
 
-    function _preStake(uint256 liquidity) internal virtual returns(uint192);
+    function _preStake(uint256 liquidity) internal virtual returns(uint128);
 
-    function _postStake(uint192 depositStake, address recipient) internal virtual;
+    function _postStake(uint128 depositStake, address recipient) internal virtual;
 
     function _withdraw(uint256 liquidity, address user, address recipient) internal returns(uint256) {
-        uint192 stake = _preWithdraw(liquidity, recipient);
+        uint128 stake = _preWithdraw(liquidity, recipient);
         if(stake == 0) revert InsufficientStake(stake);
 
         _updateStake(user);
 
 		UserInfo storage userInfo = _userInfo[user];
 		uint192 reward = userInfo.reward;
-		if (stake > reward) {
-			uint192 balance = userInfo.stake + reward; //TODO; this can get stake stuck
-            if(stake > balance) revert InsufficientBalance(stake, balance);
+        unchecked { 
+		    if (stake > reward) {
+			    uint192 balance = userInfo.stake + reward;
+                if(stake > balance) revert InsufficientBalance(stake, balance);
 
-            unchecked {
-			    userInfo.stake = balance - stake;
-			    __totalStake = uint192(uint256(__totalStake) + reward) - stake;  //TODO; this can get stake stuck
-            }
-			userInfo.reward = 0;
-		} else {
-            // prettier-ignore
-			unchecked { userInfo.reward = reward - stake; }
-		}
+                userInfo.stake = uint128(balance - stake);
+                __totalStake += uint128(reward) - stake;
+            
+			    userInfo.reward = 0;
+		    } else {
+			    userInfo.reward = reward - stake;
+		    }
+        }
 
         _postWithdraw(stake, user, recipient);
         return stake;
     }
 
-    function _preWithdraw(uint256 liquidity, address recipient) internal virtual returns(uint192);
+    function _preWithdraw(uint256 liquidity, address recipient) internal virtual returns(uint128);
     
-    function _postWithdraw(uint192 stake, address user, address recipient) internal virtual;
+    function _postWithdraw(uint128 stake, address user, address recipient) internal virtual;
 
     function _distribute(uint256 reward) internal returns(uint256) {
-        uint192 rewardStake = _preDistribute(reward);
+        uint128 rewardStake = _preDistribute(reward);
         if(rewardStake == 0) revert InsufficientStake(rewardStake);
+
+        //TODO: unchecked
 
         uint64 block64 = block.number.toUint64();
 
-        uint256 totalStakeAge = _totalStakeAge + __totalStake * (block64 - _lastUpdateBlock); //TODO; this can get stake stuck
+        uint256 totalStakeAge = _totalStakeAge + __totalStake * (block64 - _lastUpdateBlock);//TODO: 256 conv
         if(totalStakeAge == 0) revert DistributionNotAvailable();
-        uint256 rewardPerStakeAge = rewardStake * DENOMINATOR / totalStakeAge;
+        uint256 rewardPerStakeAge = rewardStake * DENOMINATOR / totalStakeAge;//TODO: 256 conv
 
         uint64 distributionId = _distributionId;
         DistributionInfo storage prevDistributionInfo = _distributionInfo[distributionId - 1];
-        uint256 cumRewardAgePerStakeAge = prevDistributionInfo.cumRewardAgePerStakeAge + rewardPerStakeAge * (block64 - prevDistributionInfo.block); //TODO; this can get stake stuck
+        uint256 cumRewardAgePerStakeAge = prevDistributionInfo.cumRewardAgePerStakeAge + rewardPerStakeAge * (block64 - prevDistributionInfo.block); //TODO: 256 conv
         
         _distributionInfo[distributionId] = DistributionInfo({
             block: block64,
@@ -144,9 +147,9 @@ abstract contract FairRewardDistributor {
         return reward;
     }
 
-    function _preDistribute(uint256 reward) internal virtual returns(uint192);
+    function _preDistribute(uint256 reward) internal virtual returns(uint128);
     
-    function _postDistribute(uint192 rewardStake) internal virtual;
+    function _postDistribute(uint128 rewardStake) internal virtual;
 
     // ============ Internal View Functions ============
 
@@ -163,24 +166,19 @@ abstract contract FairRewardDistributor {
 
         uint64 distributionId = _distributionId;
         uint64 userLastDistributionId = userInfo.lastDistributionId;
-        uint256 userReward = userInfo.reward;
-        if (userLastDistributionId == distributionId) return userReward;
+        if (userLastDistributionId == distributionId) return userInfo.reward;
 
         DistributionInfo memory lastUserDistributionInfo = _distributionInfo[userLastDistributionId];
 
-        uint256 blockDelta;
-        uint256 rangeRewardAgePerStakeAge;
         unchecked { 
-            blockDelta = lastUserDistributionInfo.block - userInfo.lastUpdateBlock; 
-            rangeRewardAgePerStakeAge = _distributionInfo[distributionId - 1].cumRewardAgePerStakeAge - lastUserDistributionInfo.cumRewardAgePerStakeAge;
+            uint256 userStake = userInfo.stake;
+            uint256 userStakeAge = userInfo.stakeAge + userStake * (lastUserDistributionInfo.block - userInfo.lastUpdateBlock);
+
+            uint256 rewardBeforeDistibution = Math.mulDiv(userStakeAge, lastUserDistributionInfo.rewardPerStakeAge, DENOMINATOR);
+            uint256 rewardAfterDistribution = Math.mulDiv(userStake, _distributionInfo[distributionId - 1].cumRewardAgePerStakeAge - lastUserDistributionInfo.cumRewardAgePerStakeAge, DENOMINATOR);
+
+            return userInfo.reward + rewardBeforeDistibution + rewardAfterDistribution; 
         }
-
-        uint256 userStake = userInfo.stake;
-        uint256 userStakeAge = userInfo.stakeAge + userStake * blockDelta; //TODO; this can get stake stuck
-
-        uint256 rewardBeforeDistibution = Math.mulDiv(userStakeAge, lastUserDistributionInfo.rewardPerStakeAge, DENOMINATOR);
-        uint256 rewardAfterDistribution = Math.mulDiv(userStake, rangeRewardAgePerStakeAge, DENOMINATOR);
-        return userReward + rewardBeforeDistibution + rewardAfterDistribution; //TODO; this can get stake stuck
     }
 
     // ============ Private Write Functions ============
@@ -193,17 +191,20 @@ abstract contract FairRewardDistributor {
         if (userInfo.lastDistributionId == distributionId) {
             fromBlock = userInfo.lastUpdateBlock;
         } else {
-            userInfo.reward = _userReward(user).toUint192();
+            userInfo.reward = uint192(_userReward(user));
             // prettier-ignore
             unchecked { fromBlock = _distributionInfo[distributionId - 1].block; }
         }
 
-        uint64 block64 = block.number.toUint64();
-        userInfo.stakeAge = userInfo.stake * (block64 - fromBlock);
-        userInfo.lastDistributionId = distributionId;
-        userInfo.lastUpdateBlock = block64;
+        uint64 block64 = block.number.toUint64();//TODO: what if its more?
+        unchecked {
+            userInfo.stakeAge = uint192(userInfo.stake * (block.number - fromBlock));
+            _totalStakeAge += uint192(__totalStake * (block.number - _lastUpdateBlock));
+        }
 
-        _totalStakeAge += __totalStake * (block64 - _lastUpdateBlock);
+        userInfo.lastUpdateBlock = block64;
         _lastUpdateBlock = block64;
+
+        userInfo.lastDistributionId = distributionId;
     }
 }
