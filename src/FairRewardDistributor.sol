@@ -9,7 +9,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 //TODO: comms
 
-//assumptions: 
+//assumptions:
 //no block numbers higher than 2**64 - 1 are possible. it stops rewards after that
 //stakes can be represented by 2**128 - 1 max
 abstract contract FairRewardDistributor {
@@ -37,7 +37,7 @@ abstract contract FairRewardDistributor {
     uint128 private _lastUpdateBlock;
     uint192 private _totalStakeAge;
     uint64 private _distributionId;
-    
+
     mapping(address user => UserInfo) private _userInfo;
     mapping(uint64 distributionId => DistributionInfo) private _distributionInfo;
 
@@ -59,80 +59,78 @@ abstract contract FairRewardDistributor {
 
     constructor() {
         uint64 block64 = block.number.toUint64();
-        _distributionInfo[0] = DistributionInfo({
-            block: block64,
-            rewardPerStakeAge: 0,
-            cumRewardAgePerStakeAge: 0
-        });
+        _distributionInfo[0] = DistributionInfo({ block: block64, rewardPerStakeAge: 0, cumRewardAgePerStakeAge: 0 });
         _lastUpdateBlock = block64;
         _distributionId = 1;
     }
 
     // ============ Internal Write Functions ============
 
-    function _stake(uint256 liquidity, address recipient) internal returns(uint256) {
+    function _stake(uint256 liquidity, address recipient) internal returns (uint256) {
         uint128 stake = _preStake(liquidity);
-        if(stake == 0) revert InsufficientStake(stake);
+        if (stake == 0) revert InsufficientStake(stake);
 
         _updateStake(recipient);
 
-        unchecked { 
+        unchecked {
             uint128 totalStake = __totalStake;
-            if(totalStake + stake < __totalStake) revert TotalStakeOverflow();
-            
+            if (totalStake + stake < __totalStake) revert TotalStakeOverflow();
+
             __totalStake = totalStake + stake;
-            _userInfo[recipient].stake += stake; 
+            _userInfo[recipient].stake += stake;
         }
 
         _postStake(stake, recipient);
         return stake;
     }
 
-    function _withdraw(uint256 liquidity, address user, address recipient) internal returns(uint256) {
+    function _withdraw(uint256 liquidity, address user, address recipient) internal returns (uint256) {
         uint128 stake = _preWithdraw(liquidity);
-        if(stake == 0) revert InsufficientStake(stake);
+        if (stake == 0) revert InsufficientStake(stake);
 
         _updateStake(user);
 
-		UserInfo storage userInfo = _userInfo[user];
-		uint192 reward = userInfo.reward;
-        unchecked { 
-		    if (stake > reward) {
-			    uint192 balance = userInfo.stake + reward;
-                if(stake > balance) revert InsufficientBalance(stake, balance);
+        UserInfo storage userInfo = _userInfo[user];
+        uint192 reward = userInfo.reward;
+        unchecked {
+            if (stake > reward) {
+                uint192 balance = userInfo.stake + reward;
+                if (stake > balance) revert InsufficientBalance(stake, balance);
 
                 userInfo.stake = uint128(balance - stake);
                 __totalStake += uint128(reward) - stake;
-            
-			    userInfo.reward = 0;
-		    } else {
-			    userInfo.reward = reward - stake;
-		    }
+
+                userInfo.reward = 0;
+            } else {
+                userInfo.reward = reward - stake;
+            }
         }
 
         _postWithdraw(stake, user, recipient);
         return stake;
     }
 
-    function _distribute(uint256 reward) internal returns(uint256) {
+    function _distribute(uint256 reward) internal returns (uint256) {
         uint128 rewardStake = _preDistribute(reward);
-        if(rewardStake == 0) revert InsufficientStake(rewardStake);
+        if (rewardStake == 0) revert InsufficientStake(rewardStake);
 
         uint64 block64 = block.number.toUint64();
         uint64 distributionId = _distributionId;
 
-        unchecked { 
+        unchecked {
             uint64 newDistributionId = distributionId + 1;
-            if(newDistributionId == 0) revert DistributionIdOverflow();
+            if (newDistributionId == 0) revert DistributionIdOverflow();
             _distributionId = newDistributionId;
 
             uint192 totalStakeAge = _totalStakeAge + __totalStake * (block64 - _lastUpdateBlock);
-            if(totalStakeAge == 0) revert DistributionNotAvailable();
+            if (totalStakeAge == 0) revert DistributionNotAvailable();
 
             DistributionInfo storage prevDistributionInfo = _distributionInfo[distributionId - 1];
-            uint192 rewardPerStakeAge = rewardStake * uint128(DENOMINATOR) / totalStakeAge;
-            uint256 cumRewardAgePerStakeAge = prevDistributionInfo.cumRewardAgePerStakeAge + rewardPerStakeAge * (block64 - prevDistributionInfo.block);
-        
+            uint192 rewardPerStakeAge = (rewardStake * uint128(DENOMINATOR)) / totalStakeAge;
+            uint256 cumRewardAgePerStakeAge =
+                prevDistributionInfo.cumRewardAgePerStakeAge +
+                    rewardPerStakeAge * (block64 - prevDistributionInfo.block);
+
             _distributionInfo[distributionId] = DistributionInfo({
                 block: block64,
                 rewardPerStakeAge: rewardPerStakeAge,
@@ -147,20 +145,19 @@ abstract contract FairRewardDistributor {
         return reward;
     }
 
-
     function _postStake(uint128 depositStake, address recipient) internal virtual;
 
     function _postWithdraw(uint128 stake, address user, address recipient) internal virtual;
-    
+
     function _postDistribute(uint128 rewardStake) internal virtual;
 
     // ============ Internal View Functions ============
 
-    function _preStake(uint256 liquidity) internal view virtual returns(uint128);
+    function _preStake(uint256 liquidity) internal view virtual returns (uint128);
 
-    function _preWithdraw(uint256 liquidity) internal view virtual returns(uint128);
+    function _preWithdraw(uint256 liquidity) internal view virtual returns (uint128);
 
-    function _preDistribute(uint256 reward) internal view virtual returns(uint128);
+    function _preDistribute(uint256 reward) internal view virtual returns (uint128);
 
     function _totalStake() internal view returns (uint256) {
         return __totalStake;
@@ -179,14 +176,24 @@ abstract contract FairRewardDistributor {
 
         DistributionInfo memory lastUserDistributionInfo = _distributionInfo[userLastDistributionId];
 
-        unchecked { 
+        unchecked {
             uint256 userStake = userInfo.stake;
-            uint256 userStakeAge = userInfo.stakeAge + userStake * (lastUserDistributionInfo.block - userInfo.lastUpdateBlock);
+            uint256 userStakeAge =
+                userInfo.stakeAge + userStake * (lastUserDistributionInfo.block - userInfo.lastUpdateBlock);
 
-            uint256 rewardBeforeDistibution = Math.mulDiv(userStakeAge, lastUserDistributionInfo.rewardPerStakeAge, DENOMINATOR);
-            uint256 rewardAfterDistribution = Math.mulDiv(userStake, _distributionInfo[distributionId - 1].cumRewardAgePerStakeAge - lastUserDistributionInfo.cumRewardAgePerStakeAge, DENOMINATOR);
+            uint256 rewardBeforeDistibution = Math.mulDiv(
+                userStakeAge,
+                lastUserDistributionInfo.rewardPerStakeAge,
+                DENOMINATOR
+            );
+            uint256 rewardAfterDistribution = Math.mulDiv(
+                userStake,
+                _distributionInfo[distributionId - 1].cumRewardAgePerStakeAge -
+                    lastUserDistributionInfo.cumRewardAgePerStakeAge,
+                DENOMINATOR
+            );
 
-            return userInfo.reward + rewardBeforeDistibution + rewardAfterDistribution; 
+            return userInfo.reward + rewardBeforeDistibution + rewardAfterDistribution;
         }
     }
 

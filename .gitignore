@@ -12,3 +12,5 @@ docs/
 CLAUDE.md
 .claude/
 .vscode/
+
+node_modules/
