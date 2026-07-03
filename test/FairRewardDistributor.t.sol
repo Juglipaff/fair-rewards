@@ -148,7 +148,7 @@ contract FairRewardDistributorTest is Test {
         harness.distribute(10 ether);
 
         uint256 reward = harness.userReward(alice);
-        assertLe(reward, 10 ether); // never over-pays
+        assertLe(reward, 10 ether);
         assertApproxEqRel(reward, 10 ether, REWARD_TOLERANCE);
     }
 
@@ -174,9 +174,6 @@ contract FairRewardDistributorTest is Test {
         vm.roll(GENESIS_BLOCK + 200);
         harness.distribute(10 ether);
 
-        // Alice stakeAge = 100e * 200 blocks; Bob stakeAge = 100e * 100 blocks; total = 100e * 300.
-        // Exact expected: Alice = 10e * 200 / 300 = 20/3 ether; Bob = 10e * 100 / 300 = 10/3 ether.
-
         uint256 aliceReward = harness.userReward(alice);
         uint256 aliceExpected = (uint256(10 ether) * 200) / 300;
 
@@ -198,7 +195,6 @@ contract FairRewardDistributorTest is Test {
         uint256 aliceReward = harness.userReward(alice);
         uint256 bobReward = harness.userReward(bob);
 
-        // total stakeAge = 400e * 10; Alice share = 100/400; Bob share = 300/400.
         assertLe(aliceReward, 1 ether);
         assertApproxEqRel(aliceReward, 1 ether, REWARD_TOLERANCE);
         assertLe(bobReward, 3 ether);
@@ -217,7 +213,6 @@ contract FairRewardDistributorTest is Test {
         vm.roll(GENESIS_BLOCK + 30);
         harness.distribute(3 ether);
 
-        // Alice is the sole staker across all three intervals of 10 blocks each.
         uint256 reward = harness.userReward(alice);
         assertLe(reward, 15 ether);
         assertApproxEqRel(reward, 15 ether, REWARD_TOLERANCE);
@@ -258,12 +253,7 @@ contract FairRewardDistributorTest is Test {
         vm.roll(GENESIS_BLOCK + 10);
         harness.distribute(10 ether);
         vm.roll(GENESIS_BLOCK + 20);
-
-        // Alice acts (deposits again) — this internally realizes her reward and updates her
-        // `lastDistributionId` to the current distribution id.
         harness.stake(1 ether, alice);
-
-        // Subsequent read hits the cached-early-return branch.
         vm.roll(GENESIS_BLOCK + 30);
 
         uint256 reward = harness.userReward(alice);
@@ -277,14 +267,8 @@ contract FairRewardDistributorTest is Test {
         harness.stake(100 ether, alice);
         vm.roll(GENESIS_BLOCK + 10);
         harness.distribute(10 ether);
-
-        // Force reward to become "realized" on Alice's UserInfo by triggering an update.
-        // A stake of 0 would revert; instead do a second distribution then a withdrawal from
-        // the accumulated realized reward.
         vm.roll(GENESIS_BLOCK + 20);
         harness.distribute(5 ether);
-
-        // Trigger reward realization by staking a tiny amount to update her state.
         vm.roll(GENESIS_BLOCK + 21);
         harness.stake(1 wei, alice);
 
@@ -304,16 +288,13 @@ contract FairRewardDistributorTest is Test {
         harness.stake(100 ether, alice);
         vm.roll(GENESIS_BLOCK + 10);
         harness.distribute(5 ether);
-
         vm.roll(GENESIS_BLOCK + 11);
-        harness.stake(1 wei, alice); // realize the ~5 ether reward
+        harness.stake(1 wei, alice);
 
         uint256 stakeBefore = harness.userStake(alice);
         uint256 rewardBefore = harness.userReward(alice);
         assertGt(rewardBefore, 1 ether);
 
-        // Withdraw slightly more than the realized reward — should drain reward to zero and
-        // reduce stake by the remainder.
         uint256 withdrawAmount = rewardBefore + 1 ether;
         harness.withdraw(withdrawAmount, alice, alice);
 
@@ -330,15 +311,11 @@ contract FairRewardDistributorTest is Test {
     }
 
     function test_Distribute_RevertWhen_DistributionIdOverflow() public {
-        // First establish some stake so we don't hit DistributionNotAvailable.
         harness.stake(100 ether, alice);
         vm.roll(GENESIS_BLOCK + 1);
 
-        // Slot 1: [_totalStakeAge (uint192, offset 0)] + [_distributionId (uint64, offset 24)]
-        // Force _distributionId to type(uint64).max while preserving _totalStakeAge.
         bytes32 slot1 = vm.load(address(harness), bytes32(uint256(1)));
         uint256 slot1Value = uint256(slot1);
-        // Clear high 8 bytes (offset 24..31) and set to uint64 max.
         uint256 mask = ~(uint256(type(uint64).max) << 192);
         slot1Value = (slot1Value & mask) | (uint256(type(uint64).max) << 192);
         vm.store(address(harness), bytes32(uint256(1)), bytes32(slot1Value));
