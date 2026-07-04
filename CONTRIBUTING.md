@@ -25,12 +25,11 @@ Out of scope:
 
 ## Development setup
 
-Clone with submodules and install formatter tooling:
+Clone with submodules:
 
 ```bash
 git clone --recurse-submodules https://github.com/Juglipaff/fair-reward-distributor.git
 cd fair-reward-distributor
-pnpm install
 ```
 
 If you already cloned without `--recurse-submodules`:
@@ -43,12 +42,11 @@ Formatter is required, CI blocks unformatted PRs:
 
 ```bash
 forge fmt
-pnpm exec prettier --write "src/**/*.sol" "test/**/*.sol"
 ```
 
 ## Style
 
-Match the pattern established in `src/FairRewardDistributor.sol`. `forge fmt` + `prettier-plugin-solidity` both must pass.
+Match the pattern established in `src/FairRewardDistributor.sol`. `forge fmt` must pass.
 
 ### Imports
 
@@ -178,6 +176,16 @@ struct DepositData {
 
 - `_name` - private and internal state variables and functions.
 - `name_` - constructor / function parameters that would collide with a state variable (e.g. `asset_` when `asset` is already declared).
+
+### One-line `unchecked` / `assembly` blocks
+
+Trivial single-statement `unchecked { ... }` and `assembly { ... }` blocks may be kept on one line for compactness. Forge fmt would otherwise expand them, so annotate with an end-of-line pragma:
+
+```solidity
+unchecked { fromBlock = _distributionInfo[distributionId - 1].block; } // forgefmt: disable-line
+```
+
+Use only when the body is a single statement and expansion would hurt readability. Multi-statement or nontrivial blocks stay multi-line. Do NOT use `// forgefmt: disable-next-line` on its own line - forge fmt hoists standalone comments onto the prior statement and formatting becomes non-idempotent.
 
 ### Misc
 

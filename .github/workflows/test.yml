@@ -27,21 +27,6 @@ jobs:
       - name: forge fmt --check
         run: forge fmt --check
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: pnpm install
-        run: pnpm install --frozen-lockfile=false
-
-      - name: prettier --check
-        run: pnpm exec prettier --check "src/**/*.sol" "test/**/*.sol"
-
   test:
     name: Foundry tests
     runs-on: ubuntu-latest

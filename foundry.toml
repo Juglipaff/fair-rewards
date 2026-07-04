@@ -8,4 +8,12 @@ solc_version = "0.8.35"
 gas_snapshot_check = true
 gas_snapshot_emit = false
 
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = true
+wrap_comments = false
+single_line_statement_blocks = "preserve"
+ignore = ["lib/**", "cache/**", "out/**", "node_modules/**", "broadcast/**"]
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

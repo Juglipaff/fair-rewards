@@ -81,10 +81,9 @@ Runtime (Solidity):
 Development / testing:
 
 - [`forge-std`](https://github.com/foundry-rs/forge-std) - Foundry standard library (`Test`, `console`, cheatcodes).
-- [`foundry`](https://github.com/foundry-rs/foundry) - build, test, coverage. Install via [`foundryup`](https://book.getfoundry.sh/getting-started/installation).
-- [`prettier`](https://prettier.io/) + [`prettier-plugin-solidity`](https://github.com/prettier-solidity/prettier-plugin-solidity) - source formatting.
+- [`foundry`](https://github.com/foundry-rs/foundry) - build, test, coverage, formatter. Install via [`foundryup`](https://book.getfoundry.sh/getting-started/installation).
 
-Foundry pulls Solidity dependencies as git submodules under `lib/`. `pnpm install` fetches formatter tooling.
+Foundry pulls Solidity dependencies as git submodules under `lib/`.
 
 ## Usage
 

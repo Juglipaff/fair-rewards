@@ -22,9 +22,5 @@
     "reward-distribution",
     "yield-farming",
     "foundry"
-  ],
-  "devDependencies": {
-    "prettier": "^3.9.4",
-    "prettier-plugin-solidity": "^2.3.1"
-  }
+  ]
 }

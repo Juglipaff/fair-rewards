@@ -101,15 +101,15 @@ contract FairRewardDistributorHarness is FairRewardDistributor {
     /**
      * @inheritdoc FairRewardDistributor
      */
-    function _postStake(uint128, address) internal pure override {}
+    function _postStake(uint128, address) internal pure override { }
 
     /**
      * @inheritdoc FairRewardDistributor
      */
-    function _postWithdraw(uint128, address, address) internal pure override {}
+    function _postWithdraw(uint128, address, address) internal pure override { }
 
     /**
      * @inheritdoc FairRewardDistributor
      */
-    function _postDistribute(uint128) internal pure override {}
+    function _postDistribute(uint128) internal pure override { }
 }

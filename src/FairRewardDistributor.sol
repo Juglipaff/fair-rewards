@@ -211,14 +211,11 @@ abstract contract FairRewardDistributor {
 
             DistributionInfo storage prevDistributionInfo = _distributionInfo[distributionId - 1];
             uint192 rewardPerStakeAge = (rewardStake * uint128(DENOMINATOR)) / totalStakeAge;
-            uint256 cumRewardAgePerStakeAge =
-                prevDistributionInfo.cumRewardAgePerStakeAge +
-                    rewardPerStakeAge * (block64 - prevDistributionInfo.block);
+            uint256 cumRewardAgePerStakeAge = prevDistributionInfo.cumRewardAgePerStakeAge + rewardPerStakeAge
+                * (block64 - prevDistributionInfo.block);
 
             _distributionInfo[distributionId] = DistributionInfo({
-                block: block64,
-                rewardPerStakeAge: rewardPerStakeAge,
-                cumRewardAgePerStakeAge: cumRewardAgePerStakeAge
+                block: block64, rewardPerStakeAge: rewardPerStakeAge, cumRewardAgePerStakeAge: cumRewardAgePerStakeAge
             });
         }
 
@@ -318,15 +315,12 @@ abstract contract FairRewardDistributor {
             uint256 userStakeAge =
                 userInfo.stakeAge + userStake * (lastUserDistributionInfo.block - userInfo.lastUpdateBlock);
 
-            uint256 rewardBeforeDistibution = Math.mulDiv(
-                userStakeAge,
-                lastUserDistributionInfo.rewardPerStakeAge,
-                DENOMINATOR
-            );
+            uint256 rewardBeforeDistibution =
+                Math.mulDiv(userStakeAge, lastUserDistributionInfo.rewardPerStakeAge, DENOMINATOR);
             uint256 rewardAfterDistribution = Math.mulDiv(
                 userStake,
-                _distributionInfo[distributionId - 1].cumRewardAgePerStakeAge -
-                    lastUserDistributionInfo.cumRewardAgePerStakeAge,
+                _distributionInfo[distributionId - 1].cumRewardAgePerStakeAge
+                    - lastUserDistributionInfo.cumRewardAgePerStakeAge,
                 DENOMINATOR
             );
 
@@ -352,8 +346,7 @@ abstract contract FairRewardDistributor {
             fromBlock = userInfo.lastUpdateBlock;
         } else {
             userInfo.reward = uint192(_userReward(user));
-            // prettier-ignore
-            unchecked { fromBlock = _distributionInfo[distributionId - 1].block; }
+            unchecked { fromBlock = _distributionInfo[distributionId - 1].block; } // forgefmt: disable-line
         }
 
         uint64 block64 = block.number > type(uint64).max ? type(uint64).max : uint64(block.number);
