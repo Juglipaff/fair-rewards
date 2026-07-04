@@ -22,7 +22,7 @@
 <!-- Describe how you verified the change. -->
 - [ ] Added or updated tests covering this change.
 - [ ] `forge test` passes locally.
-- [ ] Coverage does not regress.
+- [ ] `forge coverage` shows 100% coverage.
 
 ## Gas impact
 
@@ -30,12 +30,13 @@
 
 ## Breaking change?
 
-- [ ] Storage layout unchanged.
-- [ ] External / internal function signatures unchanged.
-- [ ] No new external dependencies.
+<!-- Does this change anything a downstream consumer relies on? Storage layout, ABI, error/event shape, gas class, invariants, hook signatures, etc. Describe. Delete section if not applicable. -->
+
+## New dependencies?
+
+- [ ] No new runtime dependencies added. If any: justify below.
 
 ## Checklist
 
-- [ ] `forge fmt --check` passes.
 - [ ] NatSpec is complete on any new / modified declarations.
 - [ ] I have read [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).
