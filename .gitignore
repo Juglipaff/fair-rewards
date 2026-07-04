@@ -1,25 +1,77 @@
+# ============ Foundry ============
 cache/
 out/
+docs/
+
+# Deployment artifacts — keep production broadcasts, drop local + dry runs
 !/broadcast
 /broadcast/*/31337/
 /broadcast/**/dry-run/
-docs/
-.env
-CLAUDE.md
-.claude/
-.vscode/
-node_modules/
-TODO.md
+
+# solc bootstrap binary occasionally left in-tree
 soljson*
-.DS_Store
-Thumbs.db
-.idea/
-lcov.info
-coverage/
-*.log
-.env.*
-!.env.example
+
+
+# ============ Node ============
+node_modules/
+
+
+# ============ Lockfiles ============
+# Library repo — consumers pin their own versions
 foundry.lock
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+
+
+# ============ Coverage ============
+lcov.info
+coverage/
+
+
+# ============ Environment ============
+.env
+.env.*
+!.env.example
+
+
+# ============ Logs ============
+*.log
+
+
+# ============ Editors / IDEs ============
+.vscode/
+.idea/
+.zed/
+
+
+# ============ OS cruft ============
+.DS_Store
+Thumbs.db
+
+
+# ============ AI assistants ============
+# Claude
+CLAUDE.md
+.claude/
+# Cursor
+.cursor/
+.cursorrules
+.cursorignore
+# Aider
+.aider*
+# Continue
+.continue/
+# Windsurf
+.windsurf/
+# Codeium
+.codeium/
+# Roo / Cline
+.roo/
+.roomodes
+.clinerules
+# Gemini CLI
+GEMINI.md
+.gemini/
+# Generic agent conventions
+AGENTS.md

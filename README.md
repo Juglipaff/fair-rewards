@@ -69,6 +69,21 @@ Every user-facing operation — `stake`, `withdraw`, `distribute`, reward query 
 - **Distribution count stored as `uint64`.** Up to `2⁶⁴ − 1` distributions before `DistributionIdOverflow` reverts and further distributions become impossible. Unreachable in practice.
 - **Consumer owns asset movement.** The contract is abstract and tracks accounting only. The inheriting contract is responsible for pulling / pushing the underlying tokens in the `_postStake` / `_postWithdraw` / `_postDistribute` hooks. Token semantics (allowance, fee-on-transfer, rebasing, non-standard `bool` returns) are the consumer's responsibility.
 - **Withdraw draws from reward first, then principal.** A user's realized reward acts as an implicit balance that can be withdrawn without touching stake. This is a design choice — noted so consumers understand the semantics of `_withdraw`.
+- **Integer rounding leaves dust.** Reward accounting uses fixed-point arithmetic with `DENOMINATOR = 2⁶⁴ − 1`. Each distribution computes `rewardPerStakeAge = (rewardStake × DENOMINATOR) / totalStakeAge`, and each per-user reward computes `stakeAge × rewardPerStakeAge / DENOMINATOR`. Two truncations per user per distribution mean the sum of all users' payouts is bounded above by the distributed amount but may be strictly less. Undistributed dust remains in the contract balance (never lost, never over-paid) and is silently absorbed into the next distribution's `totalStakeAge` denominator. For distributions much larger than the participant count this is negligible; for pathological cases (tiny reward split across many stakers), some wei may sit un-withdrawable until a later distribution.
+
+## Dependencies
+
+Runtime (Solidity):
+
+- [`@openzeppelin/contracts`](https://github.com/OpenZeppelin/openzeppelin-contracts) — uses `utils/math/Math.sol` (`mulDiv` for overflow-safe fixed-point arithmetic) and `utils/math/SafeCast.sol` (checked narrowing to `uint64`).
+
+Development / testing:
+
+- [`forge-std`](https://github.com/foundry-rs/forge-std) — Foundry standard library (`Test`, `console`, cheatcodes).
+- [`foundry`](https://github.com/foundry-rs/foundry) — build, test, coverage. Install via [`foundryup`](https://book.getfoundry.sh/getting-started/installation).
+- [`prettier`](https://prettier.io/) + [`prettier-plugin-solidity`](https://github.com/prettier-solidity/prettier-plugin-solidity) — source formatting.
+
+Foundry pulls Solidity dependencies as git submodules under `lib/`. `pnpm install` fetches formatter tooling.
 
 ## Usage
 
