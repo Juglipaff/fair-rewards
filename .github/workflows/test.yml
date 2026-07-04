@@ -32,11 +32,23 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      statuses: write
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive
+
+      - name: Mark coverage pending
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/${SHA}" \
+            -f state=pending \
+            -f context="coverage/coveralls (${{ github.event_name }})" \
+            -f description="Waiting for Coveralls to process..."
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
