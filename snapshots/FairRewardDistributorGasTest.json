@@ -1,0 +1,10 @@
+{
+  "distribute_single_staker": "51487",
+  "distribute_two_stakers": "51487",
+  "stake_add_to_existing": "28906",
+  "stake_first": "52373",
+  "userReward_cached": "2298",
+  "userReward_unsettled": "4224",
+  "withdraw_after_distribution": "50099",
+  "withdraw_from_stake": "30032"
+}

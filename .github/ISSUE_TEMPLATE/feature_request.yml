@@ -1,0 +1,50 @@
+name: Feature request
+description: Propose a change or addition to the library.
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening: check [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for scope. In scope: changes to the core primitive, standards-conformant wrappers (ERC-4626, ERC-20 staking wrappers, etc.). Out of scope: alternative reward-distribution algorithms, protocol-specific wrappers, application-level integrations.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Change to the core primitive (FairRewardDistributor)
+        - New standards-conformant wrapper (ERC-4626, ERC-20 staking, etc.)
+        - Change to an existing wrapper
+        - Tooling / build / CI
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve? For wrappers, which standard and which downstream use cases benefit?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Concrete API / behavior change. Include function signatures or invariants if relevant. For wrappers, cite the spec (EIP number, standard).
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Breaking change?
+      options:
+        - label: This change modifies existing storage layout, ABI, error/event shape, or documented invariants.
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context

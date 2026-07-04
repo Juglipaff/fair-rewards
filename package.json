@@ -1,0 +1,30 @@
+{
+  "name": "@juglipaff/fair-reward-distributor",
+  "version": "1.0.0",
+  "description": "Constant-gas, deposit-age-weighted, front-run-resistant on-chain reward distribution.",
+  "license": "MIT",
+  "author": "Ivan Menshchikov <juglipaff@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Juglipaff/fair-reward-distributor.git"
+  },
+  "homepage": "https://github.com/Juglipaff/fair-reward-distributor",
+  "bugs": "https://github.com/Juglipaff/fair-reward-distributor/issues",
+  "files": [
+    "src/**/*.sol",
+    "remappings.txt",
+    "LICENSE"
+  ],
+  "keywords": [
+    "solidity",
+    "ethereum",
+    "defi",
+    "reward-distribution",
+    "yield-farming",
+    "foundry"
+  ],
+  "devDependencies": {
+    "prettier": "^3.9.4",
+    "prettier-plugin-solidity": "^2.3.1"
+  }
+}
