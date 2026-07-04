@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/Juglipaff/fair-reward-distributor/compare/v1.0.4...v1.0.5) (2026-07-04)
+
+
+### Chores
+
+* trigger release ([67d75b5](https://github.com/Juglipaff/fair-reward-distributor/commit/67d75b55577b2f66e6f869d4360e5f1df072a8e3))
+
 ## [1.0.4](https://github.com/Juglipaff/fair-reward-distributor/compare/v1.0.3...v1.0.4) (2026-07-04)
 
 
