@@ -1,6 +1,6 @@
 {
   "name": "@juglipaff/fair-reward-distributor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Constant-gas, deposit-age-weighted, front-run-resistant on-chain reward distribution.",
   "license": "MIT",
   "author": "Ivan Menshchikov <juglipaff@gmail.com>",
@@ -12,7 +12,6 @@
   "bugs": "https://github.com/Juglipaff/fair-reward-distributor/issues",
   "files": [
     "src/**/*.sol",
-    "remappings.txt",
     "LICENSE"
   ],
   "keywords": [
