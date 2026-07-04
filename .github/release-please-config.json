@@ -4,6 +4,8 @@
   "packages": {
     ".": {
       "package-name": "@juglipaff/fair-reward-distributor",
+      "component": "",
+      "include-component-in-tag": false,
       "include-v-in-tag": true,
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
