@@ -66,7 +66,12 @@ New tests should be property-based / fuzz where the invariant is universal (cons
 
 ## Security
 
-Do **not** file security-relevant issues in the public tracker. Email juglipaff@gmail.com. This repo has not been audited; treat vulnerabilities accordingly.
+Do **not** file security-relevant issues in the public tracker. Report privately via one of:
+
+- GitHub [private vulnerability reporting](https://github.com/Juglipaff/fair-reward-distributor/security/advisories/new).
+- Email: juglipaff@gmail.com.
+
+This repo has not been audited; treat vulnerabilities accordingly.
 
 ## License
 
