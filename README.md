@@ -39,10 +39,10 @@ The naïve implementation forces one of two unbounded loops: iterate all users o
 
 On every distribution at index `d`, the contract records:
 
-- `rewardPerStakeAge[d] = reward / distributionStakeAge`
-- `cumRewardAgePerStakeAge[d] = cumRewardAgePerStakeAge[d-1] + rewardPerStakeAge[d] × (block[d] − block[d-1])` 
+- $rewardPerStakeAge[d] = reward / distributionStakeAge$
+- $cumRewardAgePerStakeAge[d] = cumRewardAgePerStakeAge[d-1] + rewardPerStakeAge[d] \times (block[d] - block[d-1])$
 
-The second field is a running prefix sum of reward-per-stake-age integrated over blocks, across every distribution so far. The key insight is that if a user's stake stays constant across distributions `a+1..b`, their total owed reward across that run is $stake \times \sum_{i=a+1}^{b} (rewardPerStakeAge[i] \times (block[i] - block[i-1]))$ - exactly the increments folded into `cumRewardAgePerStakeAge`. Subtracting two snapshots of that prefix sum recovers any range, so the whole sum equals `stake × (cumRewardAgePerStakeAge[b] − cumRewardAgePerStakeAge[a])`. Thus, an arbitrary number of distributions collapses to O(1) work.
+The second field is a running prefix sum of reward-per-stake-age integrated over blocks, across every distribution so far. The key insight is that if a user's stake stays constant across distributions `a+1..b`, their total owed reward across that run is $stake \times \sum_{i=a+1}^{b} (rewardPerStakeAge[i] \times (block[i] - block[i-1]))$ - exactly the increments folded into `cumRewardAgePerStakeAge`. Subtracting two snapshots of that prefix sum recovers any range, so the whole sum equals $stake \times (cumRewardAgePerStakeAge[b] - cumRewardAgePerStakeAge[a])$. Thus, an arbitrary number of distributions collapses to O(1) work.
 
 Each user stores:
 
@@ -62,7 +62,7 @@ On every user action (stake or withdraw), the owed reward is collapsed into the 
 - **Distribution count stored as `uint64`.** Up to `2⁶⁴ − 1` distributions before `DistributionIdOverflow` reverts and further distributions become impossible. Unreachable in practice.
 - **Consumer owns asset movement.** The contract is abstract and tracks accounting only. The inheriting contract is responsible for pulling / pushing the underlying tokens in the `_postStake` / `_postWithdraw` / `_postDistribute` hooks. Token semantics (allowance, fee-on-transfer, rebasing, non-standard `bool` returns) are the consumer's responsibility.
 - **Withdraw draws from reward first, then principal.** A user's realized reward acts as an implicit balance that can be withdrawn without touching stake. This is a design choice - noted so consumers understand the semantics of `_withdraw`.
-- **Integer rounding leaves dust.** Reward accounting uses fixed-point arithmetic with `DENOMINATOR = 2⁶⁴ − 1`. Each distribution computes `rewardPerStakeAge = (rewardStake × DENOMINATOR) / distributionStakeAge`, and each per-user reward computes `stakeAge × rewardPerStakeAge / DENOMINATOR`. Two truncations per user per distribution mean the sum of all users' payouts is bounded above by the distributed amount but may be strictly less. Undistributed dust remains in the contract balance (never lost, never over-paid) and is silently absorbed into the next distribution's `distributionStakeAge` denominator. For distributions much larger than the participant count this is negligible; for pathological cases (tiny reward split across many stakers), some wei may sit un-withdrawable until a later distribution.
+- **Integer rounding leaves dust.** Reward accounting uses fixed-point arithmetic with `DENOMINATOR = 2⁶⁴ − 1`. Each distribution computes $rewardPerStakeAge = (rewardStake \times DENOMINATOR) / distributionStakeAge$, and each per-user reward computes $stakeAge \times rewardPerStakeAge / DENOMINATOR$. Two truncations per user per distribution mean the sum of all users' payouts is bounded above by the distributed amount but may be strictly less. Undistributed dust remains in the contract balance (never lost, never over-paid) and is silently absorbed into the next distribution's `distributionStakeAge` denominator. For distributions much larger than the participant count this is negligible; for pathological cases (tiny reward split across many stakers), some wei may sit un-withdrawable until a later distribution.
 
 ## Dependencies
 
