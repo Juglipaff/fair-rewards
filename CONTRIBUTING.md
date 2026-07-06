@@ -25,17 +25,12 @@ Out of scope:
 
 ## Development setup
 
-Clone with submodules:
+Clone and sync dependencies:
 
 ```bash
-git clone --recurse-submodules https://github.com/Juglipaff/fair-reward-distributor.git
+git clone https://github.com/Juglipaff/fair-reward-distributor.git
 cd fair-reward-distributor
-```
-
-If you already cloned without `--recurse-submodules`:
-
-```bash
-git submodule update --init --recursive
+forge install
 ```
 
 Formatter is required, CI blocks unformatted PRs:

@@ -57,12 +57,14 @@ On every user action (stake or withdraw), the owed reward is collapsed into the 
 
 ## Assumptions and limits
 
+The items below are properties of this Solidity implementation, not of the underlying algorithm, which is agnostic to integer widths and asset movement.
+
 - **Block numbers stored as `uint64`.** Rewards stop accruing beyond `block.number > 2⁶⁴ − 1` (≈1.8 × 10¹⁹). No mainnet or L2 comes near this. Stated so integrators of exotic execution environments know the horizon.
-- **Stakes stored as `uint128`.** Both individual stakes and the pool total. `_stake` reverts with `TotalStakeOverflow` if the pool total would wrap. `_preStake` implementations must reject any input that would overflow when converted to internal units.
+- **Stakes stored as `uint128`.** Both individual stakes and the pool total. `_stake` reverts with `TotalStakeOverflow` if the pool total would wrap. Hook implementations must reject any input that would overflow when converted to internal units.
 - **Distribution count stored as `uint64`.** Up to `2⁶⁴ − 1` distributions before `DistributionIdOverflow` reverts and further distributions become impossible. Unreachable in practice.
-- **Consumer owns asset movement.** The contract is abstract and tracks accounting only. The inheriting contract is responsible for pulling / pushing the underlying tokens in the `_postStake` / `_postWithdraw` / `_postDistribute` hooks. Token semantics (allowance, fee-on-transfer, rebasing, non-standard `bool` returns) are the consumer's responsibility.
 - **Withdraw draws from reward first, then principal.** A user's realized reward acts as an implicit balance that can be withdrawn without touching stake. This is a design choice - noted so consumers understand the semantics of `_withdraw`.
-- **Integer rounding leaves dust.** Reward accounting uses fixed-point arithmetic with `DENOMINATOR = 2⁶⁴ − 1`. Each distribution computes $rewardPerStakeAge = (rewardStake \times DENOMINATOR) / distributionStakeAge$, and each per-user reward computes $stakeAge \times rewardPerStakeAge / DENOMINATOR$. Two truncations per user per distribution mean the sum of all users' payouts is bounded above by the distributed amount but may be strictly less. Undistributed dust remains in the contract balance (never lost, never over-paid) and is silently absorbed into the next distribution's `distributionStakeAge` denominator. For distributions much larger than the participant count this is negligible; for pathological cases (tiny reward split across many stakers), some wei may sit un-withdrawable until a later distribution.
+- **Integer rounding leaves dust.** Fixed-point arithmetic truncates, always in the pool's favor over users - never over-paid, occasionally slightly under-paid. Existing tests allow ~1e-16 (0.00000000000001%) relative leeway between actual and expected reward. For pathological cases (tiny reward split across many stakers), some wei may sit un-withdrawable until a later distribution.
+- **Consumer owns asset movement.** The contract is abstract and tracks accounting only. The inheriting contract is responsible for pulling / pushing the underlying tokens in the `_postStake` / `_postWithdraw` / `_postDistribute` hooks. Token semantics (allowance, fee-on-transfer, rebasing, non-standard `bool` returns) are the consumer's responsibility.
 
 ## Dependencies
 
@@ -99,6 +101,16 @@ Then add to `remappings.txt`:
 npm install @juglipaff/fair-reward-distributor
 ```
 
+### Import
+
+Regardless of installer, the Solidity import path is the same:
+
+```solidity
+import { FairRewardDistributor } from "@juglipaff/fair-reward-distributor/src/FairRewardDistributor.sol";
+```
+
+Foundry resolves it via the `remappings.txt` entry above. Hardhat / npm-based toolchains resolve it directly out of `node_modules/@juglipaff/fair-reward-distributor/src/FairRewardDistributor.sol`.
+
 ### Integration
 
 Extend the abstract contract and implement six hooks. The example below wraps a single ERC-20 as both stake and reward token, and demonstrates the `recipient` / `user` distinction - the caller can stake *on behalf of* another account and withdraw *to* an arbitrary address.
@@ -110,9 +122,11 @@ pragma solidity ^0.8.20;
 import { FairRewardDistributor } from "@juglipaff/fair-reward-distributor/src/FairRewardDistributor.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract MyPool is FairRewardDistributor {
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     IERC20 public immutable token;
 
@@ -136,15 +150,18 @@ contract MyPool is FairRewardDistributor {
     }
 
     // ---- pre-hooks: convert raw input into internal stake units ----
-    // Identity casts here - the pool uses raw token amounts as stake units.
+    // Identity mapping here - the pool uses raw token amounts as stake units.
+    // `toUint128()` reverts on overflow; a plain `uint128(...)` cast would
+    // silently truncate and corrupt accounting, so always use a checked cast
+    // (or an explicit range check) at this boundary.
     function _preStake(uint256 liquidity) internal pure override returns (uint128) {
-        return uint128(liquidity);
+        return liquidity.toUint128();
     }
     function _preWithdraw(uint256 liquidity) internal pure override returns (uint128) {
-        return uint128(liquidity);
+        return liquidity.toUint128();
     }
     function _preDistribute(uint256 liquidity) internal pure override returns (uint128) {
-        return uint128(liquidity);
+        return liquidity.toUint128();
     }
 
     // ---- post-hooks: move the underlying ----
@@ -174,10 +191,9 @@ Hook contract:
 ## Development
 
 This repo uses Foundry for development and testing and git submodules for dependency management.
-Clone the repo and run `forge test` to run tests. Forge will automatically install any missing dependencies.
 
 ```bash
 git clone https://github.com/Juglipaff/fair-reward-distributor.git
 cd fair-reward-distributor
-forge test
+forge install
 ```
