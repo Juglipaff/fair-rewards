@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/Juglipaff/fair-reward-distributor/compare/v1.0.6...v2.0.0) (2026-07-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* `_preStake` / `_preWithdraw` / `_preDistribute` are removed. `_stake`, `_withdraw`, `_distribute` now accept `uint128` liquidity directly, so consumers must narrow (e.g. via `SafeCast.toUint128`) at the external boundary. `InsufficientStake` is renamed to `InsufficientLiquidity` and now carries the raw `uint256`.
+
+### Features
+
+* remove pre-hooks; internal API now takes uint128 directly ([d05708a](https://github.com/Juglipaff/fair-reward-distributor/commit/d05708ac30f90090cee9a52a1de7304f430342a8))
+
+
+### Documentation
+
+* assorted README + CONTRIBUTING polish ([f14814b](https://github.com/Juglipaff/fair-reward-distributor/commit/f14814b9196d950d1b446d237b144346a3bd4c16))
+
 ## [1.0.6](https://github.com/Juglipaff/fair-reward-distributor/compare/v1.0.5...v1.0.6) (2026-07-05)
 
 
