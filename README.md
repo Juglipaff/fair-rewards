@@ -122,11 +122,9 @@ pragma solidity ^0.8.20;
 import { FairRewardDistributor } from "@juglipaff/fair-reward-distributor/src/FairRewardDistributor.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract MyPool is FairRewardDistributor {
     using SafeERC20 for IERC20;
-    using SafeCast for uint256;
 
     IERC20 public immutable token;
 
@@ -136,57 +134,39 @@ contract MyPool is FairRewardDistributor {
 
     // Stake `amount` and credit the position to `recipient`. The caller (msg.sender)
     // pays the tokens; `recipient` owns the resulting stake and future rewards.
-    function stakeFor(uint256 amount, address recipient) external {
+    function stakeFor(uint128 amount, address recipient) external {
         _stake(amount, recipient);
     }
 
     // Withdraw from msg.sender's own position and send the tokens to `recipient`.
-    function withdrawTo(uint256 amount, address recipient) external {
+    function withdrawTo(uint192 amount, address recipient) external {
         _withdraw(amount, msg.sender, recipient);
     }
 
-    function distribute(uint256 amount) external {
+    function distribute(uint128 amount) external {
         _distribute(amount);
-    }
-
-    // ---- pre-hooks: convert raw input into internal stake units ----
-    // Identity mapping here - the pool uses raw token amounts as stake units.
-    // `toUint128()` reverts on overflow; a plain `uint128(...)` cast would
-    // silently truncate and corrupt accounting, so always use a checked cast
-    // (or an explicit range check) at this boundary.
-    function _preStake(uint256 liquidity) internal pure override returns (uint128) {
-        return liquidity.toUint128();
-    }
-    function _preWithdraw(uint256 liquidity) internal pure override returns (uint128) {
-        return liquidity.toUint128();
-    }
-    function _preDistribute(uint256 liquidity) internal pure override returns (uint128) {
-        return liquidity.toUint128();
     }
 
     // ---- post-hooks: move the underlying ----
     // Pull from the CALLER (msg.sender), not `recipient`. `recipient` is the
     // beneficiary of the position, but the caller is who authorized the transfer.
-    function _postStake(uint128 stake_, address /*recipient*/) internal override {
-        token.safeTransferFrom(msg.sender, address(this), stake_);
+    function _postStake(uint128 liquidity, address /*recipient*/) internal override {
+        token.safeTransferFrom(msg.sender, address(this), liquidity);
     }
 
     // `user` is whose position was reduced; `recipient` is who receives the funds.
     // In this pool the two can differ (see withdrawTo).
-    function _postWithdraw(uint128 stake_, address /*user*/, address recipient) internal override {
-        token.safeTransfer(recipient, stake_);
+    function _postWithdraw(uint192 liquidity, address /*user*/, address recipient) internal override {
+        token.safeTransfer(recipient, liquidity);
     }
 
-    function _postDistribute(uint128 stake_) internal override {
-        token.safeTransferFrom(msg.sender, address(this), stake_);
+    function _postDistribute(uint128 liquidity) internal override {
+        token.safeTransferFrom(msg.sender, address(this), liquidity);
     }
 }
 ```
 
-Hook contract:
-
-- `_preStake` / `_preWithdraw` / `_preDistribute` - pure/view conversion of raw caller input into internal `uint128` stake units.
-- `_postStake` / `_postWithdraw` / `_postDistribute` - side-effectful hooks that move the underlying assets after accounting has been updated.
+Hook contract implements `_postStake` / `_postWithdraw` / `_postDistribute` - side-effectful hooks that move the underlying assets after accounting has been updated.
 
 ## Development
 

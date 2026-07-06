@@ -28,10 +28,10 @@ contract FairRewardDistributorGasTest is Test {
     uint256 internal constant GENESIS_BLOCK = 1_000_000;
 
     ///@dev Standard stake unit used across benchmarks.
-    uint256 internal constant STAKE = 1_000e18;
+    uint128 internal constant STAKE = 1_000e18;
 
     ///@dev Standard reward unit used across benchmarks.
-    uint256 internal constant REWARD = 100e18;
+    uint128 internal constant REWARD = 100e18;
 
     // ============ Setup ============
 
@@ -73,8 +73,9 @@ contract FairRewardDistributorGasTest is Test {
         harness.stake(STAKE, alice);
         vm.roll(GENESIS_BLOCK + 100);
 
+        uint192 liquidity = STAKE / 2;
         vm.startSnapshotGas("withdraw_from_stake");
-        harness.withdraw(STAKE / 2, alice, alice);
+        harness.withdraw(liquidity, alice, alice);
         vm.stopSnapshotGas();
     }
 
@@ -87,8 +88,9 @@ contract FairRewardDistributorGasTest is Test {
         harness.distribute(REWARD);
         vm.roll(GENESIS_BLOCK + 200);
 
+        uint192 liquidity = STAKE / 2;
         vm.startSnapshotGas("withdraw_after_distribution");
-        harness.withdraw(STAKE / 2, alice, alice);
+        harness.withdraw(liquidity, alice, alice);
         vm.stopSnapshotGas();
     }
 
