@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { FairRewardDistributor } from "../src/FairRewardDistributor.sol";
 import { FairRewardDistributorERC4626 } from "../src/FairRewardDistributorERC4626.sol";
 
@@ -26,6 +27,54 @@ contract MockAsset is ERC20 {
      */
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
+    }
+}
+
+/**
+ * @title MockVault2x
+ * @dev Extends the wrapper with a fixed 2:1 asset-to-share conversion (two shares per asset). Used
+ *      to verify that downstream vaults can install a custom exchange rate by overriding
+ *      `_convertToShares` and `_convertToAssets`.
+ */
+contract MockVault2x is FairRewardDistributorERC4626 {
+    /**
+     * @dev Deploys the mock with the given vault metadata and underlying asset.
+     * @param name_ Name of Vault share token to set.
+     * @param symbol_ Symbol of Vault share token to set.
+     * @param asset_ Asset to use as underlying.
+     */
+    constructor(string memory name_, string memory symbol_, IERC20 asset_)
+        FairRewardDistributorERC4626(name_, symbol_, asset_)
+    { }
+
+    /**
+     * @inheritdoc ERC4626
+     */
+    function _convertToShares(
+        uint256 assets,
+        Math.Rounding /*rounding*/
+    )
+        internal
+        pure
+        override
+        returns (uint256)
+    {
+        return assets * 2;
+    }
+
+    /**
+     * @inheritdoc ERC4626
+     */
+    function _convertToAssets(
+        uint256 shares,
+        Math.Rounding /*rounding*/
+    )
+        internal
+        pure
+        override
+        returns (uint256)
+    {
+        return shares / 2;
     }
 }
 
@@ -750,5 +799,185 @@ contract FairRewardDistributorERC4626Test is Test {
 
     function testFuzz_PreviewDistribute_Identity(uint256 assets) public view {
         assertEq(vault.previewDistribute(assets), assets);
+    }
+}
+
+/**
+ * @title FairRewardDistributorERC4626OverrideTest
+ * @dev Verifies that a downstream vault can install a custom asset-to-share exchange rate by
+ *      overriding `_convertToShares` and `_convertToAssets`. Uses `MockVault2x` which mints two
+ *      shares per asset. Every ERC4626 entrypoint that routes through the conversion pair is
+ *      exercised so the override is honored end-to-end.
+ */
+contract FairRewardDistributorERC4626OverrideTest is Test {
+    // ============ Storage ============
+
+    ///@dev Contract under test.
+    MockVault2x internal vault;
+    ///@dev Underlying asset.
+    MockAsset internal asset;
+
+    ///@dev Test user Alice.
+    address internal alice = address(0xA11CE);
+    ///@dev Test user Bob.
+    address internal bob = address(0xB0B);
+
+    ///@dev Genesis block used for deployment.
+    uint256 internal constant GENESIS_BLOCK = 1_000_000;
+
+    ///@dev Relative-error tolerance for reward assertions, in wad (1e18 = 100%). 1e2 = 0.00000000000001%.
+    uint256 internal constant REWARD_TOLERANCE = 1e2;
+
+    // ============ Events ============
+
+    /**
+     * @dev Mirror of the wrapper's Distribute event used in expectEmit calls.
+     * @param sender Sender of the assets.
+     * @param assets Amount of distributed assets.
+     * @param shares Amount of distributed Vault shares.
+     */
+    event Distribute(address indexed sender, uint256 assets, uint256 shares);
+
+    // ============ Setup ============
+
+    /**
+     * @dev Deploys the mock asset and the 2x-override vault at a fixed genesis block.
+     */
+    function setUp() public {
+        vm.roll(GENESIS_BLOCK);
+        asset = new MockAsset();
+        vault = new MockVault2x("Mock Vault 2x", "vMCK2", IERC20(address(asset)));
+    }
+
+    // ============ Helpers ============
+
+    /**
+     * @dev Mints `amount` of the underlying asset to `user` and grants the vault unlimited allowance.
+     * @param user Account to fund.
+     * @param amount Asset amount to mint.
+     */
+    function _fund(address user, uint256 amount) internal {
+        asset.mint(user, amount);
+        vm.prank(user);
+        asset.approve(address(vault), type(uint256).max);
+    }
+
+    // ============ Convert ============
+
+    function test_ConvertToShares_Reflects2x() public view {
+        assertEq(vault.convertToShares(100 ether), 200 ether);
+    }
+
+    function test_ConvertToAssets_Reflects2x() public view {
+        assertEq(vault.convertToAssets(200 ether), 100 ether);
+    }
+
+    function test_ConvertToAssets_OddSharesRoundsDown() public view {
+        assertEq(vault.convertToAssets(3), 1);
+    }
+
+    // ============ Preview ============
+
+    function test_PreviewDeposit_Reflects2x() public view {
+        assertEq(vault.previewDeposit(100 ether), 200 ether);
+    }
+
+    function test_PreviewMint_Reflects2x() public view {
+        assertEq(vault.previewMint(200 ether), 100 ether);
+    }
+
+    function test_PreviewDistribute_Reflects2x() public view {
+        assertEq(vault.previewDistribute(50 ether), 100 ether);
+    }
+
+    // ============ Deposit ============
+
+    function test_Deposit_MintsDoubleShares() public {
+        _fund(alice, 100 ether);
+        vm.prank(alice);
+        uint256 shares = vault.deposit(100 ether, alice);
+
+        assertEq(shares, 200 ether);
+        assertEq(vault.balanceOf(alice), 200 ether);
+        assertEq(asset.balanceOf(address(vault)), 100 ether);
+    }
+
+    // ============ Mint ============
+
+    function test_Mint_ChargesHalfAssets() public {
+        _fund(alice, 100 ether);
+        vm.prank(alice);
+        uint256 assets = vault.mint(200 ether, alice);
+
+        assertEq(assets, 100 ether);
+        assertEq(vault.balanceOf(alice), 200 ether);
+        assertEq(asset.balanceOf(alice), 0);
+    }
+
+    // ============ Withdraw ============
+
+    function test_Withdraw_BurnsDoubleShares() public {
+        _fund(alice, 100 ether);
+        vm.prank(alice);
+        vault.deposit(100 ether, alice);
+
+        vm.prank(alice);
+        uint256 shares = vault.withdraw(40 ether, alice, alice);
+
+        assertEq(shares, 80 ether);
+        assertEq(vault.balanceOf(alice), 120 ether);
+        assertEq(asset.balanceOf(alice), 40 ether);
+    }
+
+    // ============ Redeem ============
+
+    function test_Redeem_ReturnsHalfAssets() public {
+        _fund(alice, 100 ether);
+        vm.prank(alice);
+        vault.deposit(100 ether, alice);
+
+        vm.prank(alice);
+        uint256 assets = vault.redeem(80 ether, alice, alice);
+
+        assertEq(assets, 40 ether);
+        assertEq(vault.balanceOf(alice), 120 ether);
+        assertEq(asset.balanceOf(alice), 40 ether);
+    }
+
+    // ============ Distribute ============
+
+    function test_Distribute_UsesOverriddenShareUnits() public {
+        _fund(alice, 100 ether);
+        vm.prank(alice);
+        vault.deposit(100 ether, alice);
+        vm.roll(GENESIS_BLOCK + 10);
+        _fund(bob, 50 ether);
+
+        vm.expectEmit(true, false, false, true, address(vault));
+        emit Distribute(bob, 50 ether, 100 ether);
+
+        vm.prank(bob);
+        uint256 shares = vault.distribute(50 ether);
+
+        assertEq(shares, 100 ether);
+        assertEq(asset.balanceOf(address(vault)), 150 ether);
+    }
+
+    function test_Redeem_AllShares_AfterDistribution_ReturnsPrincipalPlusReward() public {
+        _fund(alice, 100 ether);
+        vm.prank(alice);
+        vault.deposit(100 ether, alice);
+        vm.roll(GENESIS_BLOCK + 10);
+        _fund(bob, 50 ether);
+        vm.prank(bob);
+        vault.distribute(50 ether);
+        vm.roll(GENESIS_BLOCK + 20);
+
+        vm.prank(alice);
+        uint256 assets = vault.redeem(200 ether, alice, alice);
+
+        assertLe(assets, 150 ether);
+        assertApproxEqRel(assets, 150 ether, REWARD_TOLERANCE);
+        assertEq(vault.balanceOf(alice), 0);
     }
 }

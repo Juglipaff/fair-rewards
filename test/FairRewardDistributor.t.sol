@@ -29,6 +29,9 @@ contract FairRewardDistributorTest is Test {
     ///@dev Relative-error tolerance for reward assertions, in wad (1e18 = 100%). 1e2 = 0.00000000000001%.
     uint256 internal constant REWARD_TOLERANCE = 1e2;
 
+    ///@dev Fixed-point denominator used by the algorithm's per-stake-age math.
+    uint256 internal constant DENOMINATOR = type(uint64).max;
+
     // ============ Setup ============
 
     /**
@@ -346,6 +349,45 @@ contract FairRewardDistributorTest is Test {
 
     // ============ Fuzz ============
 
+    /**
+     * @dev Minimum reward that keeps the algorithm's relative error within REWARD_TOLERANCE for the
+     * given pool stake-age.
+     *
+     * Derivation: `rewardPerStakeAge = reward * DENOMINATOR / (totalStake * delta)` truncates by at
+     * most 1. The resulting absolute error in a user's reward is therefore at most
+     * `totalStake * delta / DENOMINATOR`, and the relative error is at most
+     * `totalStake * delta / (reward * DENOMINATOR)`. REWARD_TOLERANCE is wad-scaled (1e18 = 100%),
+     * so the tolerance constraint `relativeError <= REWARD_TOLERANCE / 1e18` becomes
+     * `reward >= totalStake * delta * 1e18 / (REWARD_TOLERANCE * DENOMINATOR)`. Uses uint256
+     * throughout so the numerator survives extreme stake and delta combinations.
+     *
+     * Reference points (REWARD_TOLERANCE = 1e2, DENOMINATOR = 2^64 ≈ 1.845e19):
+     *   totalStake = 1e18,   delta = 10       -> rewardMin ≈ 5.4e15
+     *   totalStake = 1e18,   delta = 1e2      -> rewardMin ≈ 5.4e16
+     *   totalStake = 1e18,   delta = 1e4      -> rewardMin ≈ 5.4e18
+     *   totalStake = 1e24,   delta = 1e2      -> rewardMin ≈ 5.4e22
+     *   totalStake = 1e24,   delta = 1e4      -> rewardMin ≈ 5.4e24
+     *   totalStake = 1e30,   delta = 1e2      -> rewardMin ≈ 5.4e28
+     *   totalStake = 1e30,   delta = 1e4      -> rewardMin ≈ 5.4e30
+     *   totalStake = 1e30,   delta = 1e6      -> rewardMin ≈ 5.4e32
+     *   totalStake = 3.4e38, delta = 1e2      -> rewardMin ≈ 1.85e37
+     *   totalStake = 3.4e38, delta = 1844     -> rewardMin ≈ 3.4e38 (== uint128.max, upper boundary)
+     *   totalStake = 3.4e38, delta = 1e6      -> rewardMin ≈ 1.85e41 (exceeds uint128.max — no valid reward)
+     *
+     * Domain of validity: `totalStake * delta <= REWARD_TOLERANCE * DENOMINATOR * uint128.max / 1e18`
+     * (≈ 6.3e41 at REWARD_TOLERANCE = 1e2). Outside this range no uint128 reward can satisfy
+     * REWARD_TOLERANCE; callers should `vm.assume(_minReward(...) <= type(uint128).max)`.
+     *
+     * @param totalStake Sum of pool stakes across all participants active over the interval.
+     * @param delta Number of blocks the pool was staked for before the distribution.
+     * @return Ceil-divided minimum reward that keeps precision within REWARD_TOLERANCE.
+     */
+    function _minReward(uint128 totalStake, uint64 delta) internal pure returns (uint256) {
+        uint256 numer = uint256(totalStake) * delta * 1e18;
+        uint256 denom = REWARD_TOLERANCE * DENOMINATOR;
+        return (numer + denom - 1) / denom;
+    }
+
     function testFuzz_Stake_UpdatesUserAndTotal(uint128 amount) public {
         amount = uint128(bound(uint256(amount), 1, type(uint128).max));
 
@@ -356,7 +398,7 @@ contract FairRewardDistributorTest is Test {
     }
 
     function testFuzz_Stake_MultipleUsers_TotalMatchesSum(uint96 a, uint96 b, uint96 c) public {
-        vm.assume(a > 0 && b > 0 && c > 0);
+        vm.assume(a != 0 && b != 0 && c != 0);
 
         harness.stake(uint128(a), alice);
         harness.stake(uint128(b), bob);
@@ -378,22 +420,12 @@ contract FairRewardDistributorTest is Test {
         assertEq(harness.totalStake(), 0);
     }
 
-    //TODO:  Algorithm precision constraint: reward * DENOMINATOR >> stake * delta. Fuzz explores beyond that.
-    /*
-    - bound(7479, 1e18, uint128.max) wraps (raw 7479 < 1e18): size = uint128.max - 1e18 + 1 ≈ 3.4e38; result = uint128.max - (1e18 - 7479 - 1) % size ≈ 3.4e38 - 1e18 ≈ 3.4e38.
-    Effective stake ≈ 3.4e38.
-    - bound(60e18, 1e18, uint128.max) = 60e18 (in range, no wrap). Effective reward = 6e19.
-    - bound(5695, 1, 1e6) = 5695. Effective delta = 5695.
-    - distributionStakeAge = stake * delta ≈ 3.4e38 * 5695 ≈ 1.93e42.
-    - rewardPerStakeAge = reward * DENOMINATOR / distributionStakeAge = 6e19 * 1.8446e19 / 1.93e42 = 1.107e39 / 1.93e42 ≈ 5.7e-4 → **0** in integer math.
-
-    3.4e38 compared to 6e19 is astronomically low payout => it is not registered
-    */
-
     function testFuzz_Distribute_SingleUser_GetsFullReward(uint128 stakeAmount, uint128 reward, uint64 delta) public {
         stakeAmount = uint128(bound(uint256(stakeAmount), 1e18, type(uint128).max));
-        reward = uint128(bound(uint256(reward), 1e18, type(uint128).max));
         delta = uint64(bound(uint256(delta), 1, 1e6));
+        uint256 rewardMin = _minReward(stakeAmount, delta);
+        vm.assume(rewardMin < type(uint128).max);
+        reward = uint128(bound(uint256(reward), rewardMin, type(uint128).max));
 
         harness.stake(stakeAmount, alice);
         vm.roll(GENESIS_BLOCK + delta);
@@ -406,7 +438,9 @@ contract FairRewardDistributorTest is Test {
 
     function testFuzz_Distribute_TwoUsersEqualStake_HalfEach(uint128 stakeAmount, uint128 reward) public {
         stakeAmount = uint128(bound(uint256(stakeAmount), 1e18, type(uint128).max / 2));
-        reward = uint128(bound(uint256(reward), 1e18, type(uint128).max));
+        uint256 rewardMin = _minReward(stakeAmount * 2, 100);
+        vm.assume(rewardMin < type(uint128).max);
+        reward = uint128(bound(uint256(reward), rewardMin, type(uint128).max));
 
         harness.stake(stakeAmount, alice);
         harness.stake(stakeAmount, bob);
@@ -424,7 +458,9 @@ contract FairRewardDistributorTest is Test {
     function testFuzz_Distribute_TwoUsersProportional(uint128 stakeA, uint128 stakeB, uint128 reward) public {
         stakeA = uint128(bound(uint256(stakeA), 1e18, type(uint128).max / 2));
         stakeB = uint128(bound(uint256(stakeB), 1e18, type(uint128).max / 2));
-        reward = uint128(bound(uint256(reward), 1e18, type(uint128).max));
+        uint256 rewardMin = _minReward(stakeA + stakeB, 100);
+        vm.assume(rewardMin < type(uint128).max);
+        reward = uint128(bound(uint256(reward), rewardMin, type(uint128).max));
 
         harness.stake(stakeA, alice);
         harness.stake(stakeB, bob);
@@ -442,7 +478,9 @@ contract FairRewardDistributorTest is Test {
     function testFuzz_Distribute_Conservation(uint128 stakeA, uint128 stakeB, uint128 reward) public {
         stakeA = uint128(bound(uint256(stakeA), 1e18, type(uint128).max / 2));
         stakeB = uint128(bound(uint256(stakeB), 1e18, type(uint128).max / 2));
-        reward = uint128(bound(uint256(reward), 1e18, type(uint128).max));
+        uint256 rewardMin = _minReward(stakeA + stakeB, 100);
+        vm.assume(rewardMin < type(uint128).max);
+        reward = uint128(bound(uint256(reward), rewardMin, type(uint128).max));
 
         harness.stake(stakeA, alice);
         harness.stake(stakeB, bob);
@@ -463,9 +501,12 @@ contract FairRewardDistributorTest is Test {
         uint256 totalReward;
         for (uint256 i = 0; i < numDist; i++) {
             vm.roll(GENESIS_BLOCK + (i + 1) * 10);
-            uint128 r = uint128((i + 1) * 1 ether);
-            harness.distribute(r);
-            totalReward += r;
+
+            uint128 reward = uint128((i + 1) * 1 ether);
+            vm.assume(_minReward(stakeAmount, 10) <= reward);
+
+            harness.distribute(reward);
+            totalReward += reward;
         }
 
         uint256 got = harness.userReward(alice);
