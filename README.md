@@ -65,6 +65,7 @@ The items below are properties of this Solidity implementation, not of the under
 - **Withdraw draws from reward first, then principal.** A user's realized reward acts as an implicit balance that can be withdrawn without touching stake. This is a design choice - noted so consumers understand the semantics of `_withdraw`.
 - **Integer rounding leaves dust.** Fixed-point arithmetic truncates, always in the pool's favor over users - never over-paid, occasionally slightly under-paid. Existing tests allow ~1e-16 (0.00000000000001%) relative leeway between actual and expected reward. For pathological cases (tiny reward split across many stakers), some wei may sit un-withdrawable until a later distribution.
 - **Consumer owns asset movement.** The contract is abstract and tracks accounting only. The inheriting contract is responsible for pulling / pushing the underlying tokens. Token semantics (allowance, fee-on-transfer, rebasing, non-standard `bool` returns) are the consumer's responsibility.
+- **Stake and reward must be the same token.** The base contract mixes reward directly back into stake accounting (withdraw draws from reward first, then principal), so the two must share a denomination. A future revision may separate them.
 
 ## Dependencies
 
@@ -151,6 +152,30 @@ contract MyPool is FairRewardDistributor {
     }
 }
 ```
+
+### ERC-4626 wrapper
+
+`FairRewardDistributorERC4626` is a concrete, deployable implementation that exposes the primitive under the ERC-4626 vault interface. By default, shares mint 1:1 with deposited assets and reward accrues implicitly by inflating the redemption value of every existing share as future `distribute` calls land. No shares are minted on distribute.
+
+```solidity
+import { FairRewardDistributorERC4626 } from "@juglipaff/fair-reward-distributor/src/FairRewardDistributorERC4626.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+FairRewardDistributorERC4626 vault = new FairRewardDistributorERC4626(
+    "My Vault Share", "vMY", IERC20(assetAddress)
+);
+```
+
+`distribute(uint256 assets)` pulls `assets` from the caller and credits every current participant proportionally to their stake-age share, using the base algorithm. `deposit` / `mint` open a position, `withdraw` / `redeem` close it and pay principal plus accrued reward. `previewWithdrawFor(uint256 assets, address owner)` and `previewRedeemFor(uint256 shares, address owner)` extend the standard preview surface with per-account queries so integrators can quote against any holder, not just `msg.sender`.
+
+#### Overriding
+
+Every non-trivial hook is `virtual` so downstream vaults can customize behavior without forking:
+
+- `_convertToShares` / `_convertToAssets` - default identity mapping (shares == assets). Override to install a custom exchange rate.
+- `_maxDeposit` / `_maxMint` / `_maxWithdraw` / `_maxRedeem` / `_maxDistribute` - default `type(uintN).max`. Override to install per-account caps, KYC gates, or pause switches without touching the ERC-4626 public surface.
+- `_deposit` / `_withdraw` / `_distribute` - standard OpenZeppelin hooks; override to layer additional accounting (fees, waitlists) on top of the stake settlement the wrapper already performs.
+- `previewDistribute` / `previewWithdrawFor` / `previewRedeemFor` - `virtual` too, so a vault can change how a reward assets amount maps to internal share units before it hits the base algorithm.
 
 ## Development
 
