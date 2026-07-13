@@ -1,4 +1,4 @@
-name: CI
+name: Validate
 
 permissions: {}
 
@@ -7,17 +7,25 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
 
 jobs:
-  lint:
-    name: Lint
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      statuses: write
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -27,17 +35,18 @@ jobs:
       - name: forge fmt --check
         run: forge fmt --check
 
-  test:
-    name: Foundry tests
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      statuses: write
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-          submodules: recursive
+      - name: Verify committed ABIs match source
+        run: |
+          scripts/extract-abi.sh src abi.check
+          diff -r abi abi.check
+
+      - name: Run Forge tests (with gas snapshot check)
+        env:
+          FOUNDRY_PROFILE: ci
+        run: forge test -vvv
+
+      - name: Run Forge coverage
+        run: forge coverage --report lcov
 
       - name: Mark coverage pending
         if: github.event_name == 'push' || github.event_name == 'pull_request'
@@ -49,19 +58,6 @@ jobs:
             -f state=pending \
             -f context="coverage/coveralls (${{ github.event_name }})" \
             -f description="Waiting for Coveralls to process..."
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: stable
-
-      - name: Run Forge tests (with gas snapshot check)
-        env:
-          FOUNDRY_PROFILE: ci
-        run: forge test -vvv
-
-      - name: Run Forge coverage
-        run: forge coverage --report lcov
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
