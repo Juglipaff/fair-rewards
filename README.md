@@ -160,4 +160,10 @@ This repo uses Foundry for development and testing and git submodules for depend
 git clone https://github.com/Juglipaff/fair-reward-distributor.git
 cd fair-reward-distributor
 forge install
+
+### Make changes
+
+forge test # Test and regenerate gas snapshots
+forge coverage # Collect coverage - CI fails if < 100% coverage
+scripts/extract-abi.sh src abi # Regenerate abis
 ```
