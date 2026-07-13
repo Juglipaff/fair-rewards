@@ -6,7 +6,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { FairRewardDistributor } from "../FairRewardDistributor.sol";
+import { FairRewardDistributor } from "./FairRewardDistributor.sol";
 
 /**
  * @title FairRewardDistributorERC4626
@@ -38,7 +38,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
 
     /**
      * @dev Attempted to distribute more Vault shares than the max allowed.
-     * @param shares Amount of Vault shares proived.
+     * @param shares Amount of Vault shares provided.
      * @param max The maximum amount of Vault shares allowed.
      */
     error ERC4626ExceededMaxDistribute(uint256 shares, uint256 max);
@@ -62,7 +62,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      */
     function distribute(uint256 assets) public virtual returns (uint256) {
         uint256 shares = previewDistribute(assets);
-        uint256 maxShares = _maxDistribute();
+        uint256 maxShares = maxDistribute();
         if (shares > maxShares) {
             revert ERC4626ExceededMaxDistribute(shares, maxShares);
         }
@@ -103,6 +103,14 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
     }
 
     /**
+     * @dev Returns the maximum amount of Vault shares that can be distributed to users.
+     * @return The maximum amount of Vault shares that can be distributed.
+     */
+    function maxDistribute() public view virtual returns (uint256) {
+        return _maxDistribute();
+    }
+
+    /**
      * @inheritdoc ERC4626
      */
     function previewWithdraw(uint256 assets) public view override returns (uint256) {
@@ -117,7 +125,12 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @return Amount of Vault shares that would be burned in a withdraw call in the same transaction.
      */
     function previewWithdrawFor(uint256 assets, address owner) public view virtual returns (uint256) {
-        unchecked { return Math.mulDiv(assets, balanceOf(owner), _userStake(owner) + _userReward(owner)); } // forgefmt: disable-line
+        uint256 userStake;
+        unchecked {
+            userStake = _userStake(owner) + _userReward(owner);
+            if (userStake == 0) return 0;
+        }
+        return Math.mulDiv(assets, balanceOf(owner), userStake);
     }
 
     /**
@@ -135,7 +148,9 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @return Amount of assets that would be withdrawn in a redeem call in the same transaction.
      */
     function previewRedeemFor(uint256 shares, address owner) public view virtual returns (uint256) {
-        unchecked { return Math.mulDiv(shares, _userStake(owner) + _userReward(owner), balanceOf(owner)); } // forgefmt: disable-line
+        uint256 balance = balanceOf(owner);
+        if (balance == 0) return 0;
+        unchecked { return Math.mulDiv(shares, _userStake(owner) + _userReward(owner), balance); } // forgefmt: disable-line
     }
 
     /**
@@ -193,7 +208,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
         Math.Rounding /*rounding*/
     )
         internal
-        pure
+        view
         virtual
         override
         returns (uint256)
@@ -209,7 +224,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
         Math.Rounding /*rounding*/
     )
         internal
-        pure
+        view
         virtual
         override
         returns (uint256)

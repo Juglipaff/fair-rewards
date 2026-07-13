@@ -1,0 +1,12 @@
+{
+  "deposit_add_to_existing": "40581",
+  "deposit_first": "125596",
+  "distribute_single_staker": "59392",
+  "distribute_two_stakers": "59392",
+  "maxWithdraw_with_reward": "5895",
+  "mint_first": "125230",
+  "previewRedeem_with_reward": "5719",
+  "redeem_after_distribution": "84724",
+  "withdraw_after_distribution": "88452",
+  "withdraw_from_stake": "64682"
+}

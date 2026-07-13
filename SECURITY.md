@@ -41,7 +41,7 @@ Please include:
 
 In scope:
 
-- Any bug in `src/FairRewardDistributor.sol` that violates the invariants documented in the README ("What this contract does", "Assumptions and limits").
+- Any bug in `src/` that violates the invariants documented in the README ("What this contract does", "Assumptions and limits").
 - Storage layout corruption, unexpected reverts, unbounded gas, incorrect reward accounting, integer overflow / underflow escaping the guards.
 
 Out of scope:
