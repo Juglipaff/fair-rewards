@@ -235,11 +235,10 @@ contract FairRewardDistributorERC4626Test is Test {
     }
 
     function test_Deposit_RevertWhen_ExceedsMax() public {
-        uint256 amount = uint256(type(uint128).max) + 1;
+        uint256 max = vault.maxMint(alice);
+        uint256 amount = max + 1;
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxDeposit.selector, alice, amount, type(uint128).max)
-        );
+        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxDeposit.selector, alice, amount, max));
         vault.deposit(amount, alice);
     }
 
@@ -272,11 +271,10 @@ contract FairRewardDistributorERC4626Test is Test {
     }
 
     function test_Mint_RevertWhen_ExceedsMax() public {
-        uint256 shares = uint256(type(uint128).max) + 1;
+        uint256 max = vault.maxMint(alice);
+        uint256 shares = max + 1;
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxMint.selector, alice, shares, type(uint128).max)
-        );
+        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxMint.selector, alice, shares, max));
         vault.mint(shares, alice);
     }
 
@@ -469,7 +467,6 @@ contract FairRewardDistributorERC4626Test is Test {
 
     // ============ Redeem — reverts ============
 
-    //TODO: continue from here
     function test_Redeem_RevertWhen_ExceedsMax() public {
         _depositAs(alice, 100 ether);
 
@@ -485,8 +482,8 @@ contract FairRewardDistributorERC4626Test is Test {
     function test_Distribute_TransfersAssetsFromCaller() public {
         _depositAs(alice, 100 ether);
         vm.roll(GENESIS_BLOCK + 10);
-        _fund(bob, 10 ether);
 
+        _fund(bob, 10 ether);
         vm.prank(bob);
         vault.distribute(10 ether);
 
@@ -559,20 +556,18 @@ contract FairRewardDistributorERC4626Test is Test {
 
     function test_Distribute_RevertWhen_NoStake() public {
         _fund(alice, 10 ether);
-
         vm.prank(alice);
         vm.expectRevert(FairRewardDistributor.DistributionNotAvailable.selector);
         vault.distribute(10 ether);
     }
 
     function test_Distribute_RevertWhen_ExceedsMax() public {
-        uint256 amount = uint256(type(uint128).max) + 1;
+        uint256 max = vault.maxDistribute();
+        uint256 amount = max + 1;
 
         vm.prank(alice);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                FairRewardDistributorERC4626.ERC4626ExceededMaxDistribute.selector, amount, type(uint128).max
-            )
+            abi.encodeWithSelector(FairRewardDistributorERC4626.ERC4626ExceededMaxDistribute.selector, amount, max)
         );
         vault.distribute(amount);
     }
@@ -604,7 +599,7 @@ contract FairRewardDistributorERC4626Test is Test {
         vm.prank(alice);
         uint256 shares = vault.previewWithdraw(11 ether);
 
-        assertLt(shares, 11 ether);
+        assertLe(shares, 10 ether);
         assertApproxEqRel(shares, 10 ether, REWARD_TOLERANCE);
     }
 
@@ -615,9 +610,11 @@ contract FairRewardDistributorERC4626Test is Test {
         vm.roll(GENESIS_BLOCK + 20);
 
         uint256 shares = vault.previewWithdrawFor(11 ether, alice);
+        assertLe(shares, 10 ether);
         assertApproxEqRel(shares, 10 ether, REWARD_TOLERANCE);
     }
 
+    //TODO:
     function test_PreviewRedeem_NoReward_OneToOne() public {
         _depositAs(alice, 100 ether);
 
