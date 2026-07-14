@@ -103,7 +103,8 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @inheritdoc ERC4626
      */
     function maxDeposit(address receiver) public view override returns (uint256) {
-        return _maxDeposit(receiver) - _totalStake();
+        uint256 totalStake = _totalStake();
+        unchecked { return Math.max(_maxDeposit(receiver), totalStake) - totalStake; } // forgefmt: disable-line
     }
 
     /**
