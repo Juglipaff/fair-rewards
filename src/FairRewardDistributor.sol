@@ -209,7 +209,7 @@ abstract contract FairRewardDistributor {
      * @dev Reads the current sum of all users' stakes.
      * @return Current total staked amount.
      */
-    function _totalStake() internal view returns (uint256) {
+    function _totalStake() internal view returns (uint128) {
         return __totalStake;
     }
 
@@ -218,7 +218,7 @@ abstract contract FairRewardDistributor {
      * @param user Account to inspect.
      * @return Current stake of `user`.
      */
-    function _userStake(address user) internal view returns (uint256) {
+    function _userStake(address user) internal view returns (uint128) {
         return _userInfo[user].stake;
     }
 
@@ -230,7 +230,7 @@ abstract contract FairRewardDistributor {
      * @param user Account to inspect.
      * @return Total reward owed to `user` but not yet withdrawn.
      */
-    function _userReward(address user) internal view returns (uint256) {
+    function _userReward(address user) internal view returns (uint192) {
         UserInfo storage userInfo = _userInfo[user];
 
         uint64 distributionId = _distributionId;
@@ -253,7 +253,7 @@ abstract contract FairRewardDistributor {
                 DENOMINATOR
             );
 
-            return userInfo.reward + rewardBeforeDistibution + rewardAfterDistribution;
+            return userInfo.reward + uint192(rewardBeforeDistibution + rewardAfterDistribution);
         }
     }
 

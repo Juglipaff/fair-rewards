@@ -111,9 +111,8 @@ contract FairRewardDistributorERC4626Test is Test {
      * @dev Mirror of the wrapper's Distribute event used in expectEmit calls.
      * @param sender Sender of the assets.
      * @param assets Amount of distributed assets.
-     * @param shares Amount of distributed Vault shares.
      */
-    event Distribute(address indexed sender, uint256 assets, uint256 shares);
+    event Distribute(address indexed sender, uint256 assets);
 
     // ============ Setup ============
 
@@ -220,21 +219,16 @@ contract FairRewardDistributorERC4626Test is Test {
     }
 
     function test_Deposit_AtAdvertisedMax_Succeeds() public {
-        uint128 filled = type(uint128).max - 100;
-        _depositAs(alice, filled);
+        uint256 max = vault.maxDeposit(alice);
+        uint256 shares = _depositAs(alice, max);
 
-        uint256 max = vault.maxDeposit(bob);
-        _fund(bob, max);
-        vm.prank(bob);
-        vault.deposit(max, bob);
-
-        assertEq(vault.balanceOf(bob), max);
+        assertEq(shares, max);
+        assertEq(vault.balanceOf(alice), max);
     }
 
     // ============ Deposit — reverts ============
 
     function test_Deposit_RevertWhen_AmountZero() public {
-        _fund(alice, 1 ether);
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(FairRewardDistributor.InsufficientLiquidity.selector, 0));
         vault.deposit(0, alice);
@@ -351,14 +345,16 @@ contract FairRewardDistributorERC4626Test is Test {
         vault.withdraw(20 ether, alice, alice);
 
         uint256 vaultAssets = asset.balanceOf(address(vault));
-        vm.prank(alice);
-        uint256 preview = vault.previewRedeem(vault.balanceOf(alice));
+        uint256 aliceShares = vault.balanceOf(alice);
+        uint256 preview = vault.previewRedeemFor(aliceShares, alice);
 
         assertLe(preview, vaultAssets);
+        assertApproxEqRel(preview, 90 ether, REWARD_TOLERANCE);
     }
 
     // ============ Withdraw — reverts ============
 
+    //TODO: continue from here
     function test_Withdraw_RevertWhen_ExceedsMax() public {
         _depositAs(alice, 100 ether);
         uint256 max = vault.maxWithdraw(alice);
@@ -487,24 +483,13 @@ contract FairRewardDistributorERC4626Test is Test {
         assertEq(asset.balanceOf(address(vault)), 110 ether);
     }
 
-    function test_Distribute_ReturnsSharesAmount() public {
-        _depositAs(alice, 100 ether);
-        vm.roll(GENESIS_BLOCK + 10);
-        _fund(bob, 10 ether);
-
-        vm.prank(bob);
-        uint256 shares = vault.distribute(10 ether);
-
-        assertEq(shares, 10 ether);
-    }
-
     function test_Distribute_EmitsEvent() public {
         _depositAs(alice, 100 ether);
         vm.roll(GENESIS_BLOCK + 10);
         _fund(bob, 10 ether);
 
         vm.expectEmit(true, false, false, true, address(vault));
-        emit Distribute(bob, 10 ether, 10 ether);
+        emit Distribute(bob, 10 ether);
 
         vm.prank(bob);
         vault.distribute(10 ether);
@@ -589,10 +574,6 @@ contract FairRewardDistributorERC4626Test is Test {
 
     function test_PreviewMint_OneToOne() public view {
         assertEq(vault.previewMint(123 ether), 123 ether);
-    }
-
-    function test_PreviewDistribute_OneToOne() public view {
-        assertEq(vault.previewDistribute(123 ether), 123 ether);
     }
 
     function test_PreviewWithdraw_NoReward_OneToOne() public {
@@ -796,10 +777,6 @@ contract FairRewardDistributorERC4626Test is Test {
     function testFuzz_ConvertToAssets_Identity(uint256 shares) public view {
         assertEq(vault.convertToAssets(shares), shares);
     }
-
-    function testFuzz_PreviewDistribute_Identity(uint256 assets) public view {
-        assertEq(vault.previewDistribute(assets), assets);
-    }
 }
 
 /**
@@ -886,10 +863,6 @@ contract FairRewardDistributorERC4626OverrideTest is Test {
         assertEq(vault.previewMint(200 ether), 100 ether);
     }
 
-    function test_PreviewDistribute_Reflects2x() public view {
-        assertEq(vault.previewDistribute(50 ether), 100 ether);
-    }
-
     // ============ Deposit ============
 
     function test_Deposit_MintsDoubleShares() public {
@@ -945,23 +918,6 @@ contract FairRewardDistributorERC4626OverrideTest is Test {
     }
 
     // ============ Distribute ============
-
-    function test_Distribute_UsesOverriddenShareUnits() public {
-        _fund(alice, 100 ether);
-        vm.prank(alice);
-        vault.deposit(100 ether, alice);
-        vm.roll(GENESIS_BLOCK + 10);
-        _fund(bob, 50 ether);
-
-        vm.expectEmit(true, false, false, true, address(vault));
-        emit Distribute(bob, 50 ether, 100 ether);
-
-        vm.prank(bob);
-        uint256 shares = vault.distribute(50 ether);
-
-        assertEq(shares, 100 ether);
-        assertEq(asset.balanceOf(address(vault)), 150 ether);
-    }
 
     function test_Redeem_AllShares_AfterDistribution_ReturnsPrincipalPlusReward() public {
         _fund(alice, 100 ether);

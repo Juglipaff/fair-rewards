@@ -30,18 +30,17 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @dev Emitted when an asset distribution is made.
      * @param sender Sender of the assets.
      * @param assets Amount of distributed assets.
-     * @param shares Amount of distributed Vault shares.
      */
-    event Distribute(address indexed sender, uint256 assets, uint256 shares);
+    event Distribute(address indexed sender, uint256 assets);
 
     // ============ Errors ============
 
     /**
-     * @dev Attempted to distribute more Vault shares than the max allowed.
-     * @param shares Amount of Vault shares provided.
-     * @param max The maximum amount of Vault shares allowed.
+     * @dev Attempted to distribute more assets than the max allowed.
+     * @param assets Amount of assets provided.
+     * @param max The maximum amount of assets allowed.
      */
-    error ERC4626ExceededMaxDistribute(uint256 shares, uint256 max);
+    error ERC4626ExceededMaxDistribute(uint256 assets, uint256 max);
 
     // ============ Constructor ============
 
@@ -58,18 +57,44 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
     /**
      * @dev Distributes assets between all Vault participants in O(1) time complexity.
      * @param assets Amount of assets to distribute.
-     * @return Amount of Vault shares distributed.
      */
-    function distribute(uint256 assets) public virtual returns (uint256) {
-        uint256 shares = previewDistribute(assets);
-        uint256 maxShares = maxDistribute();
-        if (shares > maxShares) {
-            revert ERC4626ExceededMaxDistribute(shares, maxShares);
+    function distribute(uint256 assets) public virtual {
+        uint256 maxAssets = maxDistribute();
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDistribute(assets, maxAssets);
         }
 
-        _distribute(_msgSender(), assets, shares);
+        _distribute(_msgSender(), assets);
+    }
+
+    /**
+     * @inheritdoc ERC4626
+     */
+    function withdraw(uint256 assets, address receiver, address owner) public virtual override returns (uint256) {
+        uint256 maxAssets = maxWithdraw(owner);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+        }
+
+        uint256 shares = previewWithdrawFor(assets, owner);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         return shares;
+    }
+
+    /**
+     * @inheritdoc ERC4626
+     */
+    function redeem(uint256 shares, address receiver, address owner) public virtual override returns (uint256) {
+        uint256 maxShares = maxRedeem(owner);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        }
+
+        uint256 assets = previewRedeemFor(shares, owner);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+        return assets;
     }
 
     // ============ Public View Functions ============
@@ -78,14 +103,14 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @inheritdoc ERC4626
      */
     function maxDeposit(address receiver) public view override returns (uint256) {
-        return Math.min(previewMint(maxMint(receiver)), _maxDeposit(receiver));
+        return _maxDeposit(receiver) - _totalStake();
     }
 
     /**
      * @inheritdoc ERC4626
      */
     function maxMint(address receiver) public view override returns (uint256) {
-        return _maxMint(receiver);
+        return Math.min(previewDeposit(maxDeposit(receiver)), _maxMint(receiver));
     }
 
     /**
@@ -103,10 +128,10 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
     }
 
     /**
-     * @dev Returns the maximum amount of Vault shares that can be distributed to users.
-     * @return The maximum amount of Vault shares that can be distributed.
+     * @dev Returns the maximum amount of assets that can be distributed to users.
+     * @return The maximum amount of assets that can be distributed.
      */
-    function maxDistribute() public view virtual returns (uint256) {
+    function maxDistribute() public view returns (uint256) {
         return _maxDistribute();
     }
 
@@ -127,7 +152,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
     function previewWithdrawFor(uint256 assets, address owner) public view virtual returns (uint256) {
         uint256 userStake;
         unchecked {
-            userStake = _userStake(owner) + _userReward(owner);
+            userStake = uint256(_userStake(owner)) + _userReward(owner);
             if (userStake == 0) return 0;
         }
         return Math.mulDiv(assets, balanceOf(owner), userStake);
@@ -150,17 +175,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
     function previewRedeemFor(uint256 shares, address owner) public view virtual returns (uint256) {
         uint256 balance = balanceOf(owner);
         if (balance == 0) return 0;
-        unchecked { return Math.mulDiv(shares, _userStake(owner) + _userReward(owner), balance); } // forgefmt: disable-line
-    }
-
-    /**
-     * @dev Allows an on-chain or off-chain user to simulate the effects of their distribute at the current block,
-     * given current on-chain conditions.
-     * @param assets Amount of assets to distribute.
-     * @return Amount of Vault shares that would be distributed to users in a distribute call in the same transaction.
-     */
-    function previewDistribute(uint256 assets) public view virtual returns (uint256) {
-        return convertToShares(assets);
+        unchecked { return Math.mulDiv(shares, uint256(_userStake(owner)) + _userReward(owner), balance); } // forgefmt: disable-line
     }
 
     // ============ Internal Write Functions ============
@@ -170,7 +185,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      */
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal virtual override {
         super._deposit(caller, receiver, assets, shares);
-        _stake(shares.toUint128(), receiver);
+        _stake(assets.toUint128(), receiver);
     }
 
     /**
@@ -181,21 +196,20 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
         virtual
         override
     {
-        _withdraw(shares.toUint128(), owner);
         super._withdraw(caller, receiver, owner, assets, shares);
+        _withdraw(assets.toUint128(), owner);
     }
 
     /**
      * @dev Distribute workflow.
      * @param caller Address making a call.
      * @param assets Amount of assets being distributed.
-     * @param shares Amount of Vault shares being distributed.
      */
-    function _distribute(address caller, uint256 assets, uint256 shares) internal virtual {
+    function _distribute(address caller, uint256 assets) internal virtual {
         _transferIn(caller, assets);
-        _distribute(shares.toUint128());
+        _distribute(assets.toUint128());
 
-        emit Distribute(caller, assets, shares);
+        emit Distribute(caller, assets);
     }
 
     // ============ Internal View Functions ============
@@ -238,8 +252,8 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @param receiver Account that the limit is imposed on.
      * @return The maximum amount of the underlying asset that can be deposited.
      */
-    function _maxDeposit(address receiver) internal view virtual returns (uint256) {
-        return type(uint256).max;
+    function _maxDeposit(address receiver) internal view virtual returns (uint128) {
+        return type(uint128).max;
     }
 
     /**
@@ -247,8 +261,8 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @param receiver Account that the limit is imposed on.
      * @return The maximum amount of the Vault shares.
      */
-    function _maxMint(address receiver) internal view virtual returns (uint128) {
-        return type(uint128).max;
+    function _maxMint(address receiver) internal view virtual returns (uint256) {
+        return type(uint256).max;
     }
 
     /**
@@ -257,8 +271,8 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @param owner Account that the limit is imposed on.
      * @return The maximum amount of the underlying asset that can be withdrawn.
      */
-    function _maxWithdraw(address owner) internal view virtual returns (uint256) {
-        return type(uint256).max;
+    function _maxWithdraw(address owner) internal view virtual returns (uint192) {
+        return type(uint192).max;
     }
 
     /**
@@ -267,13 +281,13 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
      * @param owner Account that the limit is imposed on.
      * @return The maximum amount of Vault shares that can be redeemed.
      */
-    function _maxRedeem(address owner) internal view virtual returns (uint128) {
-        return type(uint128).max;
+    function _maxRedeem(address owner) internal view virtual returns (uint256) {
+        return type(uint256).max;
     }
 
     /**
-     * @dev Returns the maximum amount of Vault shares that can be distributed to users.
-     * @return The maximum amount of Vault shares that can be distributed.
+     * @dev Returns the maximum amount of assets that can be distributed to users.
+     * @return The maximum amount of assets that can be distributed.
      */
     function _maxDistribute() internal view virtual returns (uint128) {
         return type(uint128).max;

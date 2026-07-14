@@ -91,8 +91,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
     function test_Gas_Deposit_First() public {
         _fund(alice, STAKE);
 
-        vm.startSnapshotGas("deposit_first");
         vm.prank(alice);
+        vm.startSnapshotGas("deposit_first");
         vault.deposit(STAKE, alice);
         vm.stopSnapshotGas();
     }
@@ -106,8 +106,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
         vault.deposit(STAKE, alice);
         vm.roll(GENESIS_BLOCK + 100);
 
-        vm.startSnapshotGas("deposit_add_to_existing");
         vm.prank(alice);
+        vm.startSnapshotGas("deposit_add_to_existing");
         vault.deposit(STAKE, alice);
         vm.stopSnapshotGas();
     }
@@ -118,8 +118,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
     function test_Gas_Mint_First() public {
         _fund(alice, STAKE);
 
-        vm.startSnapshotGas("mint_first");
         vm.prank(alice);
+        vm.startSnapshotGas("mint_first");
         vault.mint(STAKE, alice);
         vm.stopSnapshotGas();
     }
@@ -133,8 +133,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
         vault.deposit(STAKE, alice);
         vm.roll(GENESIS_BLOCK + 100);
 
-        vm.startSnapshotGas("withdraw_from_stake");
         vm.prank(alice);
+        vm.startSnapshotGas("withdraw_from_stake");
         vault.withdraw(STAKE / 2, alice, alice);
         vm.stopSnapshotGas();
     }
@@ -152,8 +152,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
         vault.distribute(REWARD);
         vm.roll(GENESIS_BLOCK + 200);
 
-        vm.startSnapshotGas("withdraw_after_distribution");
         vm.prank(alice);
+        vm.startSnapshotGas("withdraw_after_distribution");
         vault.withdraw(STAKE / 2, alice, alice);
         vm.stopSnapshotGas();
     }
@@ -171,8 +171,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
         vault.distribute(REWARD);
         vm.roll(GENESIS_BLOCK + 200);
 
-        vm.startSnapshotGas("redeem_after_distribution");
         vm.prank(alice);
+        vm.startSnapshotGas("redeem_after_distribution");
         vault.redeem(STAKE / 2, alice, alice);
         vm.stopSnapshotGas();
     }
@@ -187,8 +187,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
         vm.roll(GENESIS_BLOCK + 100);
         _fund(carol, REWARD);
 
-        vm.startSnapshotGas("distribute_single_staker");
         vm.prank(carol);
+        vm.startSnapshotGas("distribute_single_staker");
         vault.distribute(REWARD);
         vm.stopSnapshotGas();
     }
@@ -207,8 +207,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
         vm.roll(GENESIS_BLOCK + 100);
         _fund(carol, REWARD);
 
-        vm.startSnapshotGas("distribute_two_stakers");
         vm.prank(carol);
+        vm.startSnapshotGas("distribute_two_stakers");
         vault.distribute(REWARD);
         vm.stopSnapshotGas();
     }
@@ -246,8 +246,8 @@ contract FairRewardDistributorERC4626GasTest is Test {
         vault.distribute(REWARD);
         vm.roll(GENESIS_BLOCK + 200);
 
-        vm.startSnapshotGas("previewRedeem_with_reward");
         vm.prank(alice);
+        vm.startSnapshotGas("previewRedeem_with_reward");
         vault.previewRedeem(STAKE);
         vm.stopSnapshotGas();
     }
