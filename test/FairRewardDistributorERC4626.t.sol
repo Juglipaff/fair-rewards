@@ -354,7 +354,6 @@ contract FairRewardDistributorERC4626Test is Test {
 
     // ============ Withdraw — reverts ============
 
-    //TODO: continue from here
     function test_Withdraw_RevertWhen_ExceedsMax() public {
         _depositAs(alice, 100 ether);
         uint256 max = vault.maxWithdraw(alice);
@@ -384,6 +383,7 @@ contract FairRewardDistributorERC4626Test is Test {
         vault.redeem(40 ether, bob, alice);
 
         assertEq(vault.balanceOf(alice), 60 ether);
+        assertEq(asset.balanceOf(alice), 0);
         assertEq(asset.balanceOf(bob), 40 ether);
     }
 
@@ -396,6 +396,7 @@ contract FairRewardDistributorERC4626Test is Test {
         vault.redeem(40 ether, bob, alice);
 
         assertEq(vault.balanceOf(alice), 60 ether);
+        assertEq(asset.balanceOf(alice), 0);
         assertEq(asset.balanceOf(bob), 40 ether);
         assertEq(vault.allowance(alice, bob), 0);
     }
@@ -438,10 +439,10 @@ contract FairRewardDistributorERC4626Test is Test {
         vault.redeem(50 ether, alice, alice);
 
         uint256 vaultAssets = asset.balanceOf(address(vault));
-        vm.prank(alice);
-        uint256 preview = vault.previewRedeem(vault.balanceOf(alice));
+        uint256 preview = vault.previewRedeemFor(vault.balanceOf(alice), alice);
 
         assertLe(preview, vaultAssets);
+        assertApproxEqRel(preview, vaultAssets, REWARD_TOLERANCE);
     }
 
     function test_Redeem_FinalAfterPartial_Succeeds() public {
@@ -451,14 +452,24 @@ contract FairRewardDistributorERC4626Test is Test {
         vm.roll(GENESIS_BLOCK + 20);
 
         vm.prank(alice);
-        vault.redeem(50 ether, alice, alice);
+        uint256 firstAssets = vault.redeem(50 ether, alice, alice);
+        assertLe(firstAssets, 55 ether);
+        assertApproxEqRel(firstAssets, 55 ether, REWARD_TOLERANCE);
 
         vm.prank(alice);
-        vault.redeem(vault.balanceOf(alice), alice, alice);
+        uint256 secondAssets = vault.redeem(50 ether, alice, alice);
+        assertLe(secondAssets, 55 ether);
+        assertApproxEqRel(secondAssets, 55 ether, REWARD_TOLERANCE);
+
+        assertLe(asset.balanceOf(alice), 110 ether);
+        assertApproxEqRel(asset.balanceOf(alice), 110 ether, REWARD_TOLERANCE);
+        assertEq(vault.balanceOf(alice), 0);
+        assertEq(asset.balanceOf(address(vault)), 110 ether - asset.balanceOf(alice));
     }
 
     // ============ Redeem — reverts ============
 
+    //TODO: continue from here
     function test_Redeem_RevertWhen_ExceedsMax() public {
         _depositAs(alice, 100 ether);
 
