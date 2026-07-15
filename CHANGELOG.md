@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.0.0](https://github.com/Juglipaff/fair-rewards/compare/v4.0.0...v5.0.0) (2026-07-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* npm package renamed from @juglipaff/fair-reward-distributor to @juglipaff/fair-rewards. Contracts renamed FairRewardDistributor -> FairRewards and FairRewardDistributorERC4626 -> FairRewardsERC4626. Update imports and package.json dependency accordingly. Old package deprecated on npm.
+
+### Features
+
+* rename package to @juglipaff/fair-rewards ([54e3626](https://github.com/Juglipaff/fair-rewards/commit/54e3626ad341d18c5abdecd02a8bdb91c25b1321))
+
 ## [4.0.0](https://github.com/Juglipaff/fair-rewards/compare/v3.0.0...v4.0.0) (2026-07-15)
 
 
