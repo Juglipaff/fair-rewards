@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.0.2](https://github.com/Juglipaff/fair-rewards/compare/v5.0.1...v5.0.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* trigger release for prior README revert ([ac7eff3](https://github.com/Juglipaff/fair-rewards/commit/ac7eff3fbb49647a4765d535cfc4f5e92d49f731))
+
 ## [5.0.1](https://github.com/Juglipaff/fair-rewards/compare/v5.0.0...v5.0.1) (2026-07-15)
 
 
