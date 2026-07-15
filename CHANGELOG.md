@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.0.1](https://github.com/Juglipaff/fair-rewards/compare/v5.0.0...v5.0.1) (2026-07-15)
+
+
+### Documentation
+
+* add hidden OG image for npm social preview ([de1abc6](https://github.com/Juglipaff/fair-rewards/commit/de1abc602ef99834cab675bcc815e696edc2f235))
+
 ## [5.0.0](https://github.com/Juglipaff/fair-rewards/compare/v4.0.0...v5.0.0) (2026-07-15)
 
 
