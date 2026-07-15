@@ -2,21 +2,21 @@
 pragma solidity 0.8.35;
 
 import { Test } from "forge-std/Test.sol";
-import { FairRewardDistributorHarness } from "../mocks/FairRewardDistributorHarness.sol";
+import { FairRewardsHarness } from "../mocks/FairRewardsHarness.sol";
 
 /**
- * @title FairRewardDistributorGasTest
+ * @title FairRewardsGasTest
  * @dev Gas benchmarks for hot-path operations. Each test isolates a single SUT call inside
  *      `vm.startSnapshotGas` / `vm.stopSnapshotGas` fences so the recorded number covers ONLY
  *      the target operation, not the warm-up setup that precedes it. Results are persisted to
  *      the `snapshots/` directory (one file per group) and committed to the repo. CI diffs the
  *      directory to detect regressions.
  */
-contract FairRewardDistributorGasTest is Test {
+contract FairRewardsGasTest is Test {
     // ============ Storage ============
 
     ///@dev Contract under test.
-    FairRewardDistributorHarness internal harness;
+    FairRewardsHarness internal harness;
 
     ///@dev Test user Alice.
     address internal alice = address(0xA11CE);
@@ -40,7 +40,7 @@ contract FairRewardDistributorGasTest is Test {
      */
     function setUp() public {
         vm.roll(GENESIS_BLOCK);
-        harness = new FairRewardDistributorHarness();
+        harness = new FairRewardsHarness();
     }
 
     // ============ External Write Functions ============

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.35;
 
-import { FairRewardDistributor } from "../../src/FairRewardDistributor.sol";
+import { FairRewards } from "../../src/FairRewards.sol";
 
 /**
- * @title FairRewardDistributorHarness
- * @dev Test-only concrete implementation of the abstract FairRewardDistributor. Uses 1:1
+ * @title FairRewardsHarness
+ * @dev Test-only concrete implementation of the abstract FairRewards. Uses 1:1
  *      conversion between raw liquidity and internal stake units so tests can exercise
  *      the pure accounting layer without token transfer semantics interfering.
  */
-contract FairRewardDistributorHarness is FairRewardDistributor {
+contract FairRewardsHarness is FairRewards {
     // ============ External Write Functions ============
 
     /**

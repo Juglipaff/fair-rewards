@@ -28,8 +28,8 @@ Out of scope:
 Clone and sync dependencies:
 
 ```bash
-git clone https://github.com/Juglipaff/fair-reward-distributor.git
-cd fair-reward-distributor
+git clone https://github.com/Juglipaff/fair-rewards.git
+cd fair-rewards
 forge install
 ```
 
@@ -220,7 +220,7 @@ ABI artifacts live in `abi/<Contract>.json` and are committed to the repo so npm
 
 Do **not** file security-relevant issues in the public tracker. Report privately via one of:
 
-- GitHub [private vulnerability reporting](https://github.com/Juglipaff/fair-reward-distributor/security/advisories/new).
+- GitHub [private vulnerability reporting](https://github.com/Juglipaff/fair-rewards/security/advisories/new).
 - Email: juglipaff@gmail.com.
 
 ## License

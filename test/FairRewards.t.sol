@@ -2,18 +2,18 @@
 pragma solidity 0.8.35;
 
 import { Test } from "forge-std/Test.sol";
-import { FairRewardDistributor } from "../src/FairRewardDistributor.sol";
-import { FairRewardDistributorHarness } from "./mocks/FairRewardDistributorHarness.sol";
+import { FairRewards } from "../src/FairRewards.sol";
+import { FairRewardsHarness } from "./mocks/FairRewardsHarness.sol";
 
 /**
- * @title FairRewardDistributorTest
- * @dev Unit tests for the FairRewardDistributor accounting layer via a 1:1 harness.
+ * @title FairRewardsTest
+ * @dev Unit tests for the FairRewards accounting layer via a 1:1 harness.
  */
-contract FairRewardDistributorTest is Test {
+contract FairRewardsTest is Test {
     // ============ Storage ============
 
     ///@dev Contract under test.
-    FairRewardDistributorHarness internal harness;
+    FairRewardsHarness internal harness;
 
     ///@dev Test user Alice.
     address internal alice = address(0xA11CE);
@@ -39,7 +39,7 @@ contract FairRewardDistributorTest is Test {
      */
     function setUp() public {
         vm.roll(GENESIS_BLOCK);
-        harness = new FairRewardDistributorHarness();
+        harness = new FairRewardsHarness();
     }
 
     // ============ Constructor ============
@@ -130,9 +130,7 @@ contract FairRewardDistributorTest is Test {
 
     function test_Withdraw_RevertWhen_ExceedsBalance() public {
         harness.stake(100 ether, alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(FairRewardDistributor.InsufficientBalance.selector, 101 ether, 100 ether)
-        );
+        vm.expectRevert(abi.encodeWithSelector(FairRewards.InsufficientBalance.selector, 101 ether, 100 ether));
         harness.withdraw(101 ether, alice);
     }
 
@@ -256,7 +254,7 @@ contract FairRewardDistributorTest is Test {
     }
 
     function test_Distribute_RevertWhen_NoStakeExists() public {
-        vm.expectRevert(FairRewardDistributor.DistributionNotAvailable.selector);
+        vm.expectRevert(FairRewards.DistributionNotAvailable.selector);
         harness.distribute(10 ether);
     }
 
@@ -350,7 +348,7 @@ contract FairRewardDistributorTest is Test {
 
         uint192 rewardBefore = uint192(harness.userReward(alice));
         vm.expectRevert(
-            abi.encodeWithSelector(FairRewardDistributor.InsufficientBalance.selector, rewardBefore + 1, rewardBefore)
+            abi.encodeWithSelector(FairRewards.InsufficientBalance.selector, rewardBefore + 1, rewardBefore)
         );
         harness.collectReward(rewardBefore + 1, alice);
     }
@@ -359,7 +357,7 @@ contract FairRewardDistributorTest is Test {
 
     function test_Stake_RevertWhen_TotalStakeOverflow() public {
         harness.stake(type(uint128).max - 100, alice);
-        vm.expectRevert(FairRewardDistributor.TotalStakeOverflow.selector);
+        vm.expectRevert(FairRewards.TotalStakeOverflow.selector);
         harness.stake(101, bob);
     }
 
@@ -373,7 +371,7 @@ contract FairRewardDistributorTest is Test {
         slot1Value = (slot1Value & mask) | (uint256(type(uint64).max) << 192);
         vm.store(address(harness), bytes32(uint256(1)), bytes32(slot1Value));
 
-        vm.expectRevert(FairRewardDistributor.DistributionIdOverflow.selector);
+        vm.expectRevert(FairRewards.DistributionIdOverflow.selector);
         harness.distribute(1 ether);
     }
 

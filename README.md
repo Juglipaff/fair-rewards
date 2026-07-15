@@ -1,9 +1,9 @@
-# Fair Reward Distributor
+# Fair Rewards
 
-[![release](https://img.shields.io/github/v/release/Juglipaff/fair-reward-distributor?sort=semver)](https://github.com/Juglipaff/fair-reward-distributor/releases)
-[![npm](https://img.shields.io/npm/v/@juglipaff/fair-reward-distributor.svg)](https://www.npmjs.com/package/@juglipaff/fair-reward-distributor)
-[![coverage](https://coveralls.io/repos/github/Juglipaff/fair-reward-distributor/badge.svg?branch=main)](https://coveralls.io/github/Juglipaff/fair-reward-distributor?branch=main)
-[![license](https://img.shields.io/github/license/Juglipaff/fair-reward-distributor.svg)](./LICENSE)
+[![release](https://img.shields.io/github/v/release/Juglipaff/fair-rewards?sort=semver)](https://github.com/Juglipaff/fair-rewards/releases)
+[![npm](https://img.shields.io/npm/v/@juglipaff/fair-rewards.svg)](https://www.npmjs.com/package/@juglipaff/fair-rewards)
+[![coverage](https://coveralls.io/repos/github/Juglipaff/fair-rewards/badge.svg?branch=main)](https://coveralls.io/github/Juglipaff/fair-rewards?branch=main)
+[![license](https://img.shields.io/github/license/Juglipaff/fair-rewards.svg)](./LICENSE)
 
 > [!CAUTION]
 > This code has **not** been audited. Use at your own risk. No warranty is provided, express or implied. Do not deploy to production without an independent security review.
@@ -86,19 +86,19 @@ Foundry pulls Solidity dependencies as git submodules under `lib/`.
 #### **Foundry** (git submodule):
 
 ```bash
-forge install Juglipaff/fair-reward-distributor
+forge install Juglipaff/fair-rewards
 ```
 
 Then add to `remappings.txt`:
 
 ```
-@juglipaff/fair-reward-distributor/=lib/fair-reward-distributor/
+@juglipaff/fair-rewards/=lib/fair-rewards/
 ```
 
 #### **npm** (Hardhat, Truffle, or any Node-based toolchain):
 
 ```bash
-npm install @juglipaff/fair-reward-distributor
+npm install @juglipaff/fair-rewards
 ```
 
 ### Base algorithm import
@@ -106,10 +106,10 @@ npm install @juglipaff/fair-reward-distributor
 Regardless of installer, the Solidity import path is the same:
 
 ```solidity
-import { FairRewardDistributor } from "@juglipaff/fair-reward-distributor/src/FairRewardDistributor.sol";
+import { FairRewards } from "@juglipaff/fair-rewards/src/FairRewards.sol";
 ```
 
-Foundry resolves it via the `remappings.txt` entry above. Hardhat / npm-based toolchains resolve it directly out of `node_modules/@juglipaff/fair-reward-distributor/src/FairRewardDistributor.sol`.
+Foundry resolves it via the `remappings.txt` entry above. Hardhat / npm-based toolchains resolve it directly out of `node_modules/@juglipaff/fair-rewards/src/FairRewards.sol`.
 
 The example below wraps a single ERC-20 as both stake and reward token, and demonstrates the `recipient` / `user` distinction - the caller can stake *on behalf of* another account and withdraw *to* an arbitrary address.
 
@@ -117,11 +117,11 @@ The example below wraps a single ERC-20 as both stake and reward token, and demo
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { FairRewardDistributor } from "@juglipaff/fair-reward-distributor/src/FairRewardDistributor.sol";
+import { FairRewards } from "@juglipaff/fair-rewards/src/FairRewards.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract MyPool is FairRewardDistributor {
+contract MyPool is FairRewards {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable token;
@@ -152,13 +152,13 @@ contract MyPool is FairRewardDistributor {
 
 ### ERC-4626 wrapper import
 
-`FairRewardDistributorERC4626` is a concrete, deployable implementation that exposes the primitive under the ERC-4626 vault interface. By default, shares mint 1:1 with deposited assets and reward accrues implicitly by inflating the redemption value of every existing share as future `distribute` calls land. No shares are minted on distribute. Stake and reward are the same token in this implementation.
+`FairRewardsERC4626` is a concrete, deployable implementation that exposes the primitive under the ERC-4626 vault interface. By default, shares mint 1:1 with deposited assets and reward accrues implicitly by inflating the redemption value of every existing share as future `distribute` calls land. No shares are minted on distribute. Stake and reward are the same token in this implementation.
 
 ```solidity
-import { FairRewardDistributorERC4626 } from "@juglipaff/fair-reward-distributor/src/FairRewardDistributorERC4626.sol";
+import { FairRewardsERC4626 } from "@juglipaff/fair-rewards/src/FairRewardsERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-FairRewardDistributorERC4626 vault = new FairRewardDistributorERC4626(
+FairRewardsERC4626 vault = new FairRewardsERC4626(
     "My Vault Share", "vMY", IERC20(assetAddress)
 );
 ```
@@ -179,8 +179,8 @@ Every non-trivial hook is `virtual` so downstream vaults can customize behavior 
 Pre-generated ABIs ship in the `abi/` directory of the npm package for off-chain clients (ethers.js, viem, wagmi, web3.js, etc.):
 
 ```js
-import FairRewardDistributor from "@juglipaff/fair-reward-distributor/abi/FairRewardDistributor.json";
-import FairRewardDistributorERC4626 from "@juglipaff/fair-reward-distributor/abi/FairRewardDistributorERC4626.json";
+import FairRewards from "@juglipaff/fair-rewards/abi/FairRewards.json";
+import FairRewardsERC4626 from "@juglipaff/fair-rewards/abi/FairRewardsERC4626.json";
 ```
 
 TypeScript projects can import the JSON directly with `resolveJsonModule` enabled in `tsconfig.json`. ABI files are regenerated on every release, so no post-install compilation is required.
@@ -190,8 +190,8 @@ TypeScript projects can import the JSON directly with `resolveJsonModule` enable
 This repo uses Foundry for development and testing and git submodules for dependency management.
 
 ```bash
-git clone https://github.com/Juglipaff/fair-reward-distributor.git
-cd fair-reward-distributor
+git clone https://github.com/Juglipaff/fair-rewards.git
+cd fair-rewards
 forge install
 
 ### Make changes

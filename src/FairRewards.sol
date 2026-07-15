@@ -5,7 +5,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
- * @title FairRewardDistributor
+ * @title FairRewards
  * @author Ivan Menshchikov (https://github.com/Juglipaff).
  *      Algorithm co-authored with Roman Vinogradov. See https://juglipaff.github.io/Token-Distribution-Algorithm/
  * @dev Constant-gas, front-run-resistant on-chain reward distribution using deposit-age weighting.
@@ -18,7 +18,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *      - Block numbers don't exceed 2**64 - 1. Rewards stop accruing beyond that horizon.
  *      - Individual and total stakes are bounded by 2**128 - 1.
  */
-abstract contract FairRewardDistributor {
+abstract contract FairRewards {
     using SafeCast for uint256;
 
     // ============ Types ============

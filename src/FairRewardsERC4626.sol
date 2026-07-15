@@ -6,10 +6,10 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { FairRewardDistributor } from "./FairRewardDistributor.sol";
+import { FairRewards } from "./FairRewards.sol";
 
 /**
- * @title FairRewardDistributorERC4626
+ * @title FairRewardsERC4626
  * @author Ivan Menshchikov (https://github.com/Juglipaff).
  * @dev ERC4626-compliant implementation of constant-gas, front-run-resistant on-chain reward
  *      distribution algorithm (https://juglipaff.github.io/Token-Distribution-Algorithm/).
@@ -22,7 +22,7 @@ import { FairRewardDistributor } from "./FairRewardDistributor.sol";
  *      - Individual and total stakes are bounded by 2**128 - 1.
  *      - Underlying token is reward token.
  */
-contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
+contract FairRewardsERC4626 is ERC4626, FairRewards {
     using SafeCast for uint256;
 
     // ============ Events ============
@@ -46,7 +46,7 @@ contract FairRewardDistributorERC4626 is ERC4626, FairRewardDistributor {
     // ============ Constructor ============
 
     /**
-     * @dev Initializes FairRewardDistributorERC4626.
+     * @dev Initializes FairRewardsERC4626.
      * @param name_ Name of Vault share token to set.
      * @param symbol_ Symbol of Vault share token to set.
      * @param asset_ Asset to use as underlying.

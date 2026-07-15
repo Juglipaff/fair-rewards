@@ -13,7 +13,7 @@ body:
     attributes:
       label: Category
       options:
-        - Change to the core primitive (FairRewardDistributor)
+        - Change to the core primitive (FairRewards)
         - New standards-conformant wrapper (ERC-4626, ERC-20 staking, etc.)
         - Change to an existing wrapper
         - Tooling / build / CI

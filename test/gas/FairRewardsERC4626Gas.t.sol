@@ -4,7 +4,7 @@ pragma solidity 0.8.35;
 import { Test } from "forge-std/Test.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { FairRewardDistributorERC4626 } from "../../src/FairRewardDistributorERC4626.sol";
+import { FairRewardsERC4626 } from "../../src/FairRewardsERC4626.sol";
 
 /**
  * @title MockAsset
@@ -27,18 +27,18 @@ contract MockAsset is ERC20 {
 }
 
 /**
- * @title FairRewardDistributorERC4626GasTest
+ * @title FairRewardsERC4626GasTest
  * @dev Gas benchmarks for hot-path operations of the ERC4626 wrapper. Each test isolates a single
  *      SUT call inside `vm.startSnapshotGas` / `vm.stopSnapshotGas` fences so the recorded number
  *      covers ONLY the target operation. Storage slots and token allowances are warmed up during
  *      setup so cold-slot overhead does not contaminate the measurement, except in the "first"
  *      benchmarks where the cold write is the point of the measurement.
  */
-contract FairRewardDistributorERC4626GasTest is Test {
+contract FairRewardsERC4626GasTest is Test {
     // ============ Storage ============
 
     ///@dev Contract under test.
-    FairRewardDistributorERC4626 internal vault;
+    FairRewardsERC4626 internal vault;
     ///@dev Underlying asset.
     MockAsset internal asset;
 
@@ -67,7 +67,7 @@ contract FairRewardDistributorERC4626GasTest is Test {
     function setUp() public {
         vm.roll(GENESIS_BLOCK);
         asset = new MockAsset();
-        vault = new FairRewardDistributorERC4626("Vault Share", "vMCK", IERC20(address(asset)));
+        vault = new FairRewardsERC4626("Vault Share", "vMCK", IERC20(address(asset)));
     }
 
     // ============ Helpers ============

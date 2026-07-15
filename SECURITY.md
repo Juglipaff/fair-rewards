@@ -19,7 +19,7 @@ Security fixes land on the latest `main`. Only the most recent published release
 
 Preferred channels:
 
-1. GitHub's [private vulnerability reporting](https://github.com/Juglipaff/fair-reward-distributor/security/advisories/new) - encrypted, keeps disclosure private until a fix ships.
+1. GitHub's [private vulnerability reporting](https://github.com/Juglipaff/fair-rewards/security/advisories/new) - encrypted, keeps disclosure private until a fix ships.
 2. Email: juglipaff@gmail.com - PGP not required but welcome.
 
 Please include:

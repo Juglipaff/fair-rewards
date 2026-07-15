@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability (private advisory)
-    url: https://github.com/Juglipaff/fair-reward-distributor/security/advisories/new
+    url: https://github.com/Juglipaff/fair-rewards/security/advisories/new
     about: Preferred. Report security issues via GitHub's private vulnerability reporting.
   - name: Security vulnerability (email)
     url: mailto:juglipaff@gmail.com
     about: Alternative channel.
   - name: Question / discussion
-    url: https://github.com/Juglipaff/fair-reward-distributor/discussions
+    url: https://github.com/Juglipaff/fair-rewards/discussions
     about: For open-ended questions, algorithm discussion, or usage help.

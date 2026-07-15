@@ -6,8 +6,8 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { FairRewardDistributor } from "../src/FairRewardDistributor.sol";
-import { FairRewardDistributorERC4626 } from "../src/FairRewardDistributorERC4626.sol";
+import { FairRewards } from "../src/FairRewards.sol";
+import { FairRewardsERC4626 } from "../src/FairRewardsERC4626.sol";
 
 /**
  * @title MockAsset
@@ -36,7 +36,7 @@ contract MockAsset is ERC20 {
  *      to verify that downstream vaults can install a custom exchange rate by overriding
  *      `_convertToShares` and `_convertToAssets`.
  */
-contract MockVault2x is FairRewardDistributorERC4626 {
+contract MockVault2x is FairRewardsERC4626 {
     /**
      * @dev Deploys the mock with the given vault metadata and underlying asset.
      * @param name_ Name of Vault share token to set.
@@ -44,7 +44,7 @@ contract MockVault2x is FairRewardDistributorERC4626 {
      * @param asset_ Asset to use as underlying.
      */
     constructor(string memory name_, string memory symbol_, IERC20 asset_)
-        FairRewardDistributorERC4626(name_, symbol_, asset_)
+        FairRewardsERC4626(name_, symbol_, asset_)
     { }
 
     /**
@@ -79,15 +79,15 @@ contract MockVault2x is FairRewardDistributorERC4626 {
 }
 
 /**
- * @title FairRewardDistributorERC4626Test
+ * @title FairRewardsERC4626Test
  * @dev Unit tests for the ERC4626 wrapper. Uses a 1:1 mock ERC20 asset so preview and conversion
  *      results can be checked against exact expected values.
  */
-contract FairRewardDistributorERC4626Test is Test {
+contract FairRewardsERC4626Test is Test {
     // ============ Storage ============
 
     ///@dev Contract under test.
-    FairRewardDistributorERC4626 internal vault;
+    FairRewardsERC4626 internal vault;
     ///@dev Underlying asset.
     MockAsset internal asset;
 
@@ -122,7 +122,7 @@ contract FairRewardDistributorERC4626Test is Test {
     function setUp() public {
         vm.roll(GENESIS_BLOCK);
         asset = new MockAsset();
-        vault = new FairRewardDistributorERC4626("Vault Share", "vMCK", IERC20(address(asset)));
+        vault = new FairRewardsERC4626("Vault Share", "vMCK", IERC20(address(asset)));
     }
 
     // ============ Helpers ============
@@ -567,7 +567,7 @@ contract FairRewardDistributorERC4626Test is Test {
     function test_Distribute_RevertWhen_NoStake() public {
         _fund(alice, 10 ether);
         vm.prank(alice);
-        vm.expectRevert(FairRewardDistributor.DistributionNotAvailable.selector);
+        vm.expectRevert(FairRewards.DistributionNotAvailable.selector);
         vault.distribute(10 ether);
     }
 
@@ -576,9 +576,7 @@ contract FairRewardDistributorERC4626Test is Test {
         uint256 amount = max + 1;
 
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(FairRewardDistributorERC4626.ERC4626ExceededMaxDistribute.selector, amount, max)
-        );
+        vm.expectRevert(abi.encodeWithSelector(FairRewardsERC4626.ERC4626ExceededMaxDistribute.selector, amount, max));
         vault.distribute(amount);
     }
 
@@ -770,13 +768,13 @@ contract FairRewardDistributorERC4626Test is Test {
 }
 
 /**
- * @title FairRewardDistributorERC4626OverrideTest
+ * @title FairRewardsERC4626OverrideTest
  * @dev Verifies that a downstream vault can install a custom asset-to-share exchange rate by
  *      overriding `_convertToShares` and `_convertToAssets`. Uses `MockVault2x` which mints two
  *      shares per asset. Every ERC4626 entrypoint that routes through the conversion pair is
  *      exercised so the override is honored end-to-end.
  */
-contract FairRewardDistributorERC4626OverrideTest is Test {
+contract FairRewardsERC4626OverrideTest is Test {
     // ============ Storage ============
 
     ///@dev Contract under test.

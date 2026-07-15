@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug. Please note: **do not** file security-relevant issues here - report privately via GitHub's [private vulnerability reporting](https://github.com/Juglipaff/fair-reward-distributor/security/advisories/new) or email juglipaff@gmail.com.
+        Thanks for taking the time to report a bug. Please note: **do not** file security-relevant issues here - report privately via GitHub's [private vulnerability reporting](https://github.com/Juglipaff/fair-rewards/security/advisories/new) or email juglipaff@gmail.com.
 
   - type: textarea
     id: summary
