@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.0.3](https://github.com/Juglipaff/fair-rewards/compare/v5.0.2...v5.0.3) (2026-07-17)
+
+
+### Bug Fixes
+
+* prioritize reward collection before stake withdrawal ([#19](https://github.com/Juglipaff/fair-rewards/issues/19)) ([ded8863](https://github.com/Juglipaff/fair-rewards/commit/ded8863cc0b8817ebc9e34c764194d24e2226400))
+
 ## [5.0.2](https://github.com/Juglipaff/fair-rewards/compare/v5.0.1...v5.0.2) (2026-07-15)
 
 
