@@ -200,13 +200,13 @@ contract FairRewardsERC4626 is ERC4626, FairRewards {
     {
         super._withdraw(caller, receiver, owner, assets, shares);
 
-        uint128 userStake = _userStake(owner);
-        uint128 toWithdraw = uint128(Math.min(userStake, assets));
-        uint192 toCollect;
-        unchecked { toCollect = (assets - toWithdraw).toUint192(); } // forgefmt: disable-line
+        uint192 userReward = _userReward(owner);
+        uint192 toCollect = uint192(Math.min(userReward, assets));
+        uint128 toWithdraw;
+        unchecked { toWithdraw = (assets - toCollect).toUint128(); } // forgefmt: disable-line
 
-        _withdraw(toWithdraw, owner);
-        if (toCollect > 0) _collectReward(toCollect, owner);
+        _collectReward(toCollect, owner);
+        if (toWithdraw > 0) _withdraw(toWithdraw, owner);
     }
 
     /**
